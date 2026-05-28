@@ -1,0 +1,81 @@
+text,label,category,lang,source
+"<name>, your otp for sbi account verification is <otp>. share this with our kyc executive to complete mandatory aadhaar linking. helpline: <phone>.",1,otp,en,manual
+"dear customer, aapka otp <otp> hai account update ke liye. yeh otp hamare executive ko share karein warna aapka account kal band ho jayega. call karein: <phone>",1,otp,hinglish,manual
+"आपके खाते की केवाईसी पूर्ण करने के लिए ओटीपी <otp> है। इसे हमारे अधिकारी को <phone> पर साझा करें, अन्यथा खाता बंद होगा।",1,otp,hi,manual
+"lic policy renewal ke liye aapka otp <otp> generate hua hai. please call <phone> par aur yeh otp verify karein. 30 minutes mein expire hoga.",1,otp,hinglish,manual
+"alert: your paytm wallet has been flagged for suspicious activity. enter otp <otp> at <url> to restore access. failure to comply will result in wallet suspension.",1,otp,en,manual
+"आपके एसबीआई खाते में संदिग्ध गतिविधि पाई गई है। खाता सुरक्षित करने के लिए ओटीपी <otp> हमारे अधिकारी को दें। सम्पर्क: <phone>",1,otp,hi,manual
+"gpay upi account verification pending hai. aapka one-time password <otp> hai. ise complete karne ke liye <phone> par call karein. 15 min mein expire hoga.",1,otp,hinglish,manual
+"your hdfc bank kyc is incomplete. as per rbi guidelines, accounts with pending kyc will be blocked by <date>. update now: <url>",1,kyc,en,manual
+"dear sbi customer, aapka kyc incomplete hai. kal tak update nahi kiya toh aapka account suspend ho jayega. abhi link karein: <url>",1,kyc,hinglish,manual
+"आरबीआई के निर्देशानुसार, आपका बैंक खाता केवाईसी अपडेट नहीं होने के कारण <date> को बंद हो जाएगा। अभी अपडेट करें: <url>",1,kyc,hi,manual
+"urgent: your paytm kyc verification is pending. complete e-kyc to continue using upi services. update details here: <url> — paytm team",1,kyc,en,manual
+"axis bank customer, aapki kyc expire ho gayi hai. 48 ghante ke andar update karein warna transactions block ho jayengi. update karo: <url>",1,kyc,hinglish,manual
+"सूचना: आपके आधार और पैन कार्ड का बैंक से लिंक नहीं हुआ है। तुरंत लिंक करें: <url> अन्यथा आपका खाता <date> से निष्क्रिय हो जाएगा।",1,kyc,hi,manual
+"<name>, aapka jio sim card deactivate hone wala hai kyc expiry ke karan. abhi kyc complete karein is link par: <url> ya call karein <phone>",1,kyc,hinglish,manual
+"delhivery: your shipment could not be delivered. address incomplete. reschedule at <url>. a nominal fee of <amount> applies. tracking id: <acct>",1,delivery,en,manual
+"aapka amazon package undelivered hai kyunki address incomplete tha. delivery reschedule karne ke liye <amount> pay karein: <url>. order id <acct>",1,delivery,hinglish,manual
+"fedex customs alert: your international parcel is held at customs. release payment of <amount> required within 24 hrs. pay at <url> to avoid return.",1,delivery,en,manual
+"इंडिया पोस्ट: आपका पार्सल कस्टम क्लियरेंस में रुका है। <amount> का भुगतान करें और पार्सल रिलीज़ करें: <url>",1,delivery,hi,manual
+"bluedart: aapka parcel <acct> deliver nahi ho saka. re-delivery ke liye <amount> ka payment karein aur naya slot book karein: <url>",1,delivery,hinglish,manual
+"your meesho order is awaiting delivery confirmation. provide otp <otp> to our delivery agent or click <url> to confirm. failure will result in order return.",1,delivery,en,manual
+"important notice: your electricity connection will be permanently disconnected tonight at 9:30 pm due to an outstanding bill of <amount>. to avoid disconnection immediately contact our officer: <phone>",1,electricity,en,manual
+"bescom notice: aapke ghar ki bijli aaj raat <amount> outstanding bill ke karan kat di jayegi. abhi payment karein ya officer se baat karein: <phone>",1,electricity,hinglish,manual
+"सूचना: आपके बिजली बिल का <amount> बकाया है। आज रात 10 बजे तक भुगतान नहीं होने पर कनेक्शन काट दिया जाएगा। अभी संपर्क करें: <phone>",1,electricity,hi,manual
+"uppcl: aapka electricity connection <date> ko disconnect hoga. abhi payment karein ya helpline par call karein: <phone>. online pay: <url>",1,electricity,hinglish,manual
+"final warning from tata power: meter reading discrepancy of <amount> found on your account. pay immediately to avoid disconnection. contact lineman: <phone>",1,electricity,en,manual
+"बिजली विभाग नोटिस: आपका कनेक्शन आज शाम 7 बजे काटा जाएगा। बकाया <amount> का भुगतान करने के लिए अभी कॉल करें: <phone>",1,electricity,hi,manual
+"this is a notice from the cybercrime investigation cell new delhi. your mobile number has been linked to money laundering activity. you are under digital arrest. contact officer immediately: <phone>. failure to respond may lead to fir.",1,digital_arrest,en,manual
+"trai notice: aapka mobile number illegal activities mein use hua hai. aapka sim 2 ghante mein block ho jayega. cybercrime officer se baat karein: <phone>",1,digital_arrest,hinglish,manual
+"सीबीआई नोटिस: आपके आधार कार्ड पर एक संदिग्ध खाता पंजीकृत है। कानूनी कार्रवाई से बचने के लिए तुरंत अधिकारी से संपर्क करें: <phone>",1,digital_arrest,hi,manual
+"narcotics control bureau alert: a parcel in your name containing contraband has been seized at mumbai airport. report to our officer at <phone> within 2 hours or face arrest.",1,digital_arrest,en,manual
+"delhi police cybercell: aapke naam par ek phishing complaint darj hui hai. court summons se bachne ke liye apne advocate se baat karein ya <phone> par call karein.",1,digital_arrest,hinglish,manual
+"ईडी (प्रवर्तन निदेशालय) की ओर से नोटिस: आपके खाते में संदिग्ध लेनदेन पाया गया है। <date> तक अधिकारी को <phone> पर संपर्क करें।",1,digital_arrest,hi,manual
+"congratulations! you have been shortlisted for a data entry position with amazon work from home. earn <amount> per day. one-time registration fee: <amount>. contact hr: <phone>",1,job,en,manual
+"flipkart home-based job offer: product review karo aur <amount> roz kamao. no experience needed. register karo: <url> ya whatsapp karo <phone>",1,job,hinglish,manual
+"बधाई हो! आपको घर बैठे काम करने का मौका मिला है। प्रतिदिन <amount> कमाएं। पंजीकरण शुल्क: <amount>। अभी संपर्क करें: <phone>",1,job,hi,manual
+"google part time job: youtube videos like karo aur per task <amount> kamao. daily withdrawal possible. join karo: <url>. limited seats.",1,job,hinglish,manual
+"hiring: international bpo work from home. salary <amount>/month. no targets. training provided. send your cv to <email> or whatsapp at <phone>. immediate joining.",1,job,en,manual
+"सरकारी नौकरी अलर्ट: रेलवे में <amount> वेतन पर सीधी भर्ती। कोई परीक्षा नहीं। रजिस्ट्रेशन शुल्क <amount>। अभी अप्लाई करें: <url>",1,job,hi,manual
+"congratulations! your mobile number has won <amount> in the airtel-jio annual loyalty reward draw. to claim visit <url> or call our claim officer: <phone>. offer valid 24 hrs only.",1,lottery,en,manual
+"bsnl lucky draw winner: aapka number select hua hai. prize amount <amount>. claim karne ke liye processing fee <amount> bhejein aur call karein: <phone>",1,lottery,hinglish,manual
+"बधाई हो! आपके मोबाइल नंबर ने <amount> का लकी ड्रॉ जीता है। पुरस्कार प्राप्त करने के लिए <phone> पर कॉल करें और पंजीकरण शुल्क <amount> जमा करें।",1,lottery,hi,manual
+"india tourism lucky draw: aapne <amount> ka prize jeeta hai. claim karne ke liye government tax <amount> pehle jama karni hogi. contact: <phone>",1,lottery,hinglish,manual
+"you have been selected as a winner of the rbi special relief fund draw. prize: <amount>. to process submit your account details at <url> or call the claim desk: <phone>.",1,lottery,en,manual
+"alert from sbi: your debit card has been temporarily blocked due to suspicious activity detected on <date>. to unblock verify your credentials at <url> or call <phone>.",1,bank_impersonation,en,manual
+"hdfc bank: aapke account mein unauthorized login detect hua hai. account secure karne ke liye abhi verify karein: <url>. 1 ghante mein action nahi liya toh account freeze hoga.",1,bank_impersonation,hinglish,manual
+"आपके आईसीआईसीआई बैंक खाते में <amount> का संदिग्ध लेनदेन हुआ है। खाता सुरक्षित करने के लिए <url> पर जाएं या <phone> पर कॉल करें।",1,bank_impersonation,hi,manual
+"your axis bank credit card limit has been reduced. to restore your limit of <amount> complete re-verification at <url>. card ending <otp>.",1,bank_impersonation,en,manual
+"kotak mahindra bank: aapka net banking access block hua hai security reasons se. access restore karne ke liye details update karein: <url>",1,bank_impersonation,hinglish,manual
+"पंजाब नेशनल बैंक: आपके खाते की सुरक्षा के लिए तत्काल सत्यापन आवश्यक है। अपनी जानकारी अपडेट करें: <url> या हेल्पलाइन: <phone>",1,bank_impersonation,hi,manual
+"pre-approved! personal loan of <amount> credited in 30 mins. no documents no collateral. low emi at <amount>/month. apply: <url> or call <phone>",1,loan,en,manual
+"aapke liye instant loan <amount> approve ho gaya hai. sirf aadhar aur pan chahiye. abhi apply karein: <url>. emi start hogi <date> se.",1,loan,hinglish,manual
+"बिना गारंटी के <amount> का तत्काल लोन पाएं। न्यूनतम ब्याज दर। आधार-पैन से अप्लाई करें: <url> या संपर्क करें: <phone>",1,loan,hi,manual
+"rbi approved lender: <amount> tak ka personal loan 2% interest par. processing fee sirf <amount>. advance mein fee jama karo: <acct>. disbursement 24 hrs mein.",1,loan,hinglish,manual
+"urgent: your loan application for <amount> is approved. to release funds pay a refundable processing fee of <amount> to our escrow account: <acct>. contact: <phone>",1,loan,en,manual
+"your income tax refund of <amount> for assessment year <date> is pending credit. to process verify your bank account details at <url> or call: <phone>",1,refund,en,manual
+"dear customer, aapka insurance policy refund <amount> pending hai. refund pane ke liye account details verify karein: <url> ya call karein <phone>",1,refund,hinglish,manual
+"आयकर विभाग: आपका <amount> का रिफंड तैयार है। इसे प्राप्त करने के लिए अपनी बैंक जानकारी अपडेट करें: <url>",1,refund,hi,manual
+"amazon refund update: aapke order ka <amount> refund process mein hai. account verify karne ke liye yahan click karein: <url>",1,refund,hinglish,manual
+"lic refund department: your policy maturity amount of <amount> is on hold. to process pay stamp duty of <amount> to our officer. contact: <phone>. policy no: <acct>",1,refund,en,manual
+"sbi alert: your a/c <acct> is debited <amount> on <date> at hdfc atm. available balance: <amount>. if not done by you call <phone> immediately.",0,safe_transactional,en,manual
+"your otp for hdfc bank netbanking login is <otp>. otp is valid for 10 minutes. do not share otp with anyone including bank officials.",0,safe_transactional,en,manual
+"icici bank: aapke a/c <acct> se <amount> ka upi transaction hua hai <date> ko. merchant: swiggy. agar aapne nahi kiya toh <phone> par call karein.",0,safe_transactional,hinglish,manual
+"your paytm upi transaction of <amount> to flipkart is successful. upi ref: <acct>. balance: <amount>. <date>",0,safe_transactional,en,manual
+"आपके खाते <acct> में <amount> जमा किए गए। दिनांक: <date>। शेष राशि: <amount>। - बैंक ऑफ बड़ौदा",0,safe_transactional,hi,manual
+"axis bank: your credit card payment of <amount> due on <date> has been received. thank you. available credit limit: <amount>.",0,safe_transactional,en,manual
+"hdfc bank: emi of <amount> for your home loan deducted on <date>. remaining principal: <amount>. for queries call <phone>.",0,safe_transactional,hinglish,manual
+"nsdl: your pan card application <acct> has been processed. pan will be delivered to your registered address within 7 working days.",0,safe_transactional,en,manual
+"big billion days sale is live! up to 80% off on electronics fashion & more. shop now: <url>. reply stop to opt out. -flipkart",0,safe_promo,en,manual
+"swiggy: bhai aaj ka special deal! order <amount> se upar karo aur 50% off pao code hungry se. valid aaj raat tak. opt out: <url>",0,safe_promo,hinglish,manual
+"अमेज़न पर आज की डील: लैपटॉप पर 30% की छूट। ऑफर सीमित समय के लिए है। देखें: <url>",0,safe_promo,hi,manual
+"myntra end of reason sale: up to 70% off on top brands. use code eors30 for extra <amount> off. shop: <url> -myntra team",0,safe_promo,en,manual
+"zomato se khaas khabar: aapke area mein naya restaurant open hua hai. first order par flat 40% off. order karo: <url>",0,safe_promo,hinglish,manual
+"jio: your current plan expires on <date>. recharge with <amount> to continue enjoying unlimited calls and data. recharge: <url> or myjio app.",0,safe_promo,en,manual
+"एयरटेल: आपकी प्लान वैलिडिटी <date> को समाप्त हो रही है। रिचार्ज करें और अनलिमिटेड डेटा पाएं: <url>",0,safe_promo,hi,manual
+"bhai kal shaam 6 baje free hai kya? movie dekhne ka plan hai. let me know.",0,safe_personal,hinglish,manual
+"मम्मी आज रात खाना बनाना है क्या? मैं 8 बजे तक घर आ जाऊंगा।",0,safe_personal,hi,manual
+"hey are you coming to the office tomorrow? we have a team lunch planned. let me know by evening.",0,safe_personal,en,manual
+"yaar mera whatsapp number change ho gaya hai. naya number save kar le: <phone>. purana wala band ho gaya.",0,safe_personal,hinglish,manual
+"दीदी आज डॉक्टर के पास जाना है। क्या आप साथ आ सकती हैं? अपॉइंटमेंट <date> को है।",0,safe_personal,hi,manual
+"just wanted to confirm the meeting for <date> at 3 pm. please bring the documents we discussed. thanks.",0,safe_personal,en,manual

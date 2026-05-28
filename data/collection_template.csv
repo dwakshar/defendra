@@ -1,0 +1,4 @@
+text,label,category,lang,source
+"your hdfc bank kyc is incomplete. as per rbi guidelines accounts with pending kyc will be blocked by <date>. update now: <url>",1,kyc,en,reddit
+"sbi alert: your a/c <acct> is debited <amount> on <date> at pos merchant. available balance: <amount>. if not done by you call <phone>.",0,safe_transactional,en,inbox
+"aapka amazon package undelivered hai. address update karne ke liye <amount> pay karein: <url>. order id <acct>",1,delivery,hinglish,reddit
