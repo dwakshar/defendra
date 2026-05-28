@@ -1,0 +1,31 @@
+text,label,category,lang,source
+"We are processing your SBI refund of <AMOUNT>. An OTP has been sent to your registered number. Please share this OTP with our executive to complete the reversal immediately.",1,otp,en,synthetic
+"Flipkart: Your return refund of <AMOUNT> is approved. Our delivery executive will call you. Share the OTP you receive to confirm bank transfer to account <ACCT>.",1,otp,en,synthetic
+"PM-Kisan: Your pending installment of <AMOUNT> is ready for credit. Enter the OTP sent to your number at <URL> within 10 minutes to receive the amount.",1,otp,en,synthetic
+"IRCTC: Refund of <AMOUNT> for cancelled ticket is being processed. Share the OTP with our refund executive when they call to initiate the bank transfer.",1,otp,en,synthetic
+"Electricity Department: Excess bill amount of <AMOUNT> will be refunded. Enter OTP at <URL> to verify your bank account and receive the refund within 2 hours.",1,otp,en,synthetic
+"LIC: Your policy claim of <AMOUNT> has been approved. Our agent will call to process disbursement. Share the OTP you receive to authenticate and release funds.",1,otp,en,synthetic
+"Income Tax Department: Refund of <AMOUNT> is pending. Verify your bank account <ACCT> by sharing the OTP sent to your number with our verification officer.",1,otp,en,synthetic
+"A wrong UPI credit of <AMOUNT> was sent to your account by mistake. To reverse it back to the sender, share the OTP you just received with our executive.",1,otp,en,synthetic
+"SBI se call: Aapke account mein galat debit hua hai <AMOUNT> ka. Hum reverse karenge. Aapko ek OTP aaya hoga — use hamare agent ko bata do taki transaction reverse ho sake.",1,otp,hinglish,synthetic
+"Flipkart refund process ho raha hai <AMOUNT> ka. Delivery executive call karega. Jo OTP aaya hai use executive ko share karein taki refund aapke account mein aa sake.",1,otp,hinglish,synthetic
+"PM Kisan yojana: Aapka <AMOUNT> ka installment ready hai. OTP enter karein <URL> pe 10 minute ke andar — amount turant credit ho jaayega aapke khate mein.",1,otp,hinglish,synthetic
+"IRCTC ticket cancel ka refund <AMOUNT> ready hai. Hamare refund officer call karenge. Jo OTP receive hua hai use share karein taki bank transfer initiate ho sake.",1,otp,hinglish,synthetic
+"Bijli vibhag: Aapka excess bill <AMOUNT> refund hoga. <URL> pe OTP enter karein apna bank account verify karne ke liye. 2 ghante mein credit ho jaayega.",1,otp,hinglish,synthetic
+"LIC agent bol raha hoon. Aapka claim <AMOUNT> approve hua hai. Disbursement ke liye jo OTP aaya hai use abhi share karein — delay hone par processing dobara lagi.",1,otp,hinglish,synthetic
+"Income Tax refund <AMOUNT> pending hai. Bank account <ACCT> verify karne ke liye hamare officer ko OTP share karein jo aapke registered number pe aaya hai.",1,otp,hinglish,synthetic
+"Aapke account mein galti se <AMOUNT> credit ho gaya. Sender ne hamare through request ki hai. OTP share karein jo abhi aaya — warna legal dispute hoga.",1,otp,hinglish,synthetic
+"Amazon lucky draw mein aapne <AMOUNT> ka gift jeet liya hai. Claim karne ke liye <URL> pe OTP enter karein jo aapke number pe bheja gaya hai. 15 minute mein expire hoga.",1,otp,hinglish,synthetic
+"BSNL cashback <AMOUNT> aapke account mein credit hogi. OTP <URL> pe enter karein taki wallet ka verification ho sake. Offer sirf aaj tak valid hai.",1,otp,hinglish,synthetic
+"Google Pay se aapka refund <AMOUNT> pending hai. Bank verification ke liye OTP share karein hamare support agent ke saath — warna refund 30 din tak hold rahega.",1,otp,hinglish,synthetic
+"Parcel deliver karne ke liye delivery agent aapka OTP verify karega. Jo OTP aapke phone pe aaya hai use darwaza kholne ke baad agent ko bata dein.",1,otp,hinglish,synthetic
+"एसबीआई: आपके खाते में <AMOUNT> का गलत डेबिट हुआ है। रिवर्सल के लिए हमारे एजेंट को ओटीपी बताएं जो अभी आपके नंबर पर आया है।",1,otp,hi,synthetic
+"फ्लिपकार्ट: <AMOUNT> का रिफंड प्रक्रिया में है। डिलीवरी एजेंट कॉल करेगा। बैंक ट्रांसफर के लिए प्राप्त ओटीपी एजेंट को दें।",1,otp,hi,synthetic
+"पीएम किसान: आपकी <AMOUNT> की किस्त तैयार है। 10 मिनट में <URL> पर ओटीपी दर्ज करें — राशि तुरंत खाते में आ जाएगी।",1,otp,hi,synthetic
+"आईआरसीटीसी: रद्द टिकट का <AMOUNT> रिफंड तैयार है। हमारे अधिकारी कॉल करेंगे। बैंक ट्रांसफर के लिए ओटीपी साझा करें।",1,otp,hi,synthetic
+"बिजली विभाग: <AMOUNT> का अतिरिक्त बिल वापस किया जाएगा। बैंक सत्यापन के लिए <URL> पर ओटीपी दर्ज करें।",1,otp,hi,synthetic
+"एलआईसी: आपका <AMOUNT> का दावा स्वीकृत हुआ है। वितरण के लिए एजेंट को ओटीपी साझा करें — देरी पर पुनः प्रक्रिया शुल्क लगेगा।",1,otp,hi,synthetic
+"आयकर विभाग: <AMOUNT> का रिफंड लंबित है। खाता <ACCT> सत्यापन के लिए हमारे अधिकारी को ओटीपी बताएं।",1,otp,hi,synthetic
+"आपके खाते में गलती से <AMOUNT> क्रेडिट हुआ है। प्रेषक की ओर से रिवर्सल के लिए अभी आया ओटीपी साझा करें।",1,otp,hi,synthetic
+"अमेज़न: आपने <AMOUNT> का पुरस्कार जीता है। दावे के लिए <URL> पर ओटीपी दर्ज करें जो आपके नंबर पर भेजा गया है।",1,otp,hi,synthetic
+"गूगल पे रिफंड <AMOUNT> लंबित है। बैंक सत्यापन के लिए सहायता एजेंट को ओटीपी साझा करें अन्यथा 30 दिन होल्ड रहेगा।",1,otp,hi,synthetic

@@ -1,0 +1,31 @@
+text,label,category,lang,source
+"SBI Fraud Alert: An unauthorized transaction of <AMOUNT> was attempted on your account <ACCT>. To dispute and block, call our 24x7 fraud helpline at <PHONE> immediately.",1,bank_impersonation,en,synthetic
+"HDFC Bank: Your Debit Card was used at an overseas POS terminal for <AMOUNT>. If this was not you, call <PHONE> immediately to block the card and reverse the charge.",1,bank_impersonation,en,synthetic
+"ICICI Bank Notice: Your account has been temporarily restricted due to suspicious activity. To restore access, verify your identity by calling our officer at <PHONE> now.",1,bank_impersonation,en,synthetic
+"Axis Bank: Your credit card limit has been pre-approved for an upgrade to <AMOUNT>. To activate, a one-time processing fee of <AMOUNT> is required. Call <PHONE> to proceed.",1,bank_impersonation,en,synthetic
+"Kotak Bank Alert: We have detected your ATM card details may have been cloned. Card ending <ACCT> is at risk. Call <PHONE> immediately to block and request a replacement.",1,bank_impersonation,en,synthetic
+"PNB: Congratulations! A home loan of <AMOUNT> has been pre-sanctioned in your name. Pay the stamp duty of <AMOUNT> to <ACCT> to initiate disbursement. Call <PHONE>.",1,bank_impersonation,en,synthetic
+"RBI Compliance Cell: As per new KYC norms, all account holders must complete mandatory re-verification. Call <PHONE> and provide your details to avoid account freeze.",1,bank_impersonation,en,synthetic
+"Yes Bank: Your reward points worth <AMOUNT> are expiring tomorrow. To redeem, call <PHONE> and our executive will process the cashback to your account <ACCT>.",1,bank_impersonation,en,synthetic
+"SBI se call aa rahi hai: Aapke account <ACCT> pe <AMOUNT> ka unauthorized transaction detect hua. Block karne ke liye turant <PHONE> pe hamare fraud cell ko call karein.",1,bank_impersonation,hinglish,synthetic
+"HDFC Bank: Aapka debit card ek foreign location pe use hua hai <AMOUNT> ke liye. Agar aapne nahi kiya toh abhi <PHONE> pe call karein card block aur reversal ke liye.",1,bank_impersonation,hinglish,synthetic
+"ICICI Bank: Suspicious activity ke chalte aapka account restrict kiya gaya hai. Access restore karne ke liye hamare officer ko <PHONE> pe call karein aur identity verify karein.",1,bank_impersonation,hinglish,synthetic
+"Axis Bank: Aapka credit card limit <AMOUNT> tak upgrade ke liye pre-approve hua hai. Activate karne ke liye ek baar ki processing fee <AMOUNT> required hai. <PHONE> pe call karein.",1,bank_impersonation,hinglish,synthetic
+"Kotak Bank alert: Aapke ATM card ki details clone ho sakti hain. Card <ACCT> risk mein hai. Turant <PHONE> pe call karein block aur replacement ke liye.",1,bank_impersonation,hinglish,synthetic
+"PNB: Badhai ho! Aapke naam pe <AMOUNT> ka home loan pre-sanction hua hai. Disbursement ke liye stamp duty <AMOUNT> account <ACCT> mein bhejein. Details ke liye <PHONE> pe call karein.",1,bank_impersonation,hinglish,synthetic
+"Bank of Baroda: Aapke do accounts ko merge karne ki request aayi hai. Merge process ke liye <AMOUNT> admin fee <URL> pe bhejein. Confirmation ke liye <PHONE> pe baat karein.",1,bank_impersonation,hinglish,synthetic
+"Canara Bank: Aapka account 2 saal se inactive hai aur dormant category mein aa gaya hai. Reactivate karne ke liye <AMOUNT> fee bhejein <URL> pe ya <PHONE> pe call karein.",1,bank_impersonation,hinglish,synthetic
+"IndusInd Bank: Aapki EMI bounce hui hai aur <AMOUNT> penalty lag sakti hai. Penalty waive karne ke liye abhi <PHONE> pe hamare recovery officer se baat karein.",1,bank_impersonation,hinglish,synthetic
+"Federal Bank: Aapka NEFT of <AMOUNT> fail hua hai technical issue ki wajah se. Re-process karne ke liye <PHONE> pe hamare officer ko call karein aur transaction ID confirm karein.",1,bank_impersonation,hinglish,synthetic
+"IDFC First Bank: Aapka credit score 780 hai aur aap special interest rate ke liye eligible hain. Personal loan <AMOUNT> approve karne ke liye <PHONE> pe call karein.",1,bank_impersonation,hinglish,synthetic
+"SBI YONO: Aapka account ek urgent security update ke liye flag hua hai. App mein login karke verify karein <URL> pe — delay hone par account 48 ghante mein lock ho jaayega.",1,bank_impersonation,hinglish,synthetic
+"एसबीआई: खाते <ACCT> पर <AMOUNT> का अनधिकृत लेनदेन हुआ। विवाद और ब्लॉक के लिए तुरंत <PHONE> पर हमारे फ्रॉड सेल को कॉल करें।",1,bank_impersonation,hi,synthetic
+"एचडीएफसी बैंक: आपका डेबिट कार्ड विदेश में <AMOUNT> के लिए उपयोग किया गया। यदि आपने नहीं किया तो तुरंत <PHONE> पर कार्ड ब्लॉक करें।",1,bank_impersonation,hi,synthetic
+"आईसीआईसीआई बैंक: संदिग्ध गतिविधि के कारण खाता प्रतिबंधित है। पहुंच बहाल करने के लिए <PHONE> पर हमारे अधिकारी से संपर्क करें।",1,bank_impersonation,hi,synthetic
+"एक्सिस बैंक: क्रेडिट कार्ड सीमा <AMOUNT> तक अपग्रेड पूर्व-स्वीकृत है। सक्रियण के लिए <AMOUNT> प्रसंस्करण शुल्क आवश्यक है। <PHONE> पर कॉल करें।",1,bank_impersonation,hi,synthetic
+"कोटक बैंक: आपके एटीएम कार्ड की जानकारी क्लोन हो सकती है। कार्ड <ACCT> जोखिम में है। तुरंत <PHONE> पर ब्लॉक और रिप्लेसमेंट के लिए कॉल करें।",1,bank_impersonation,hi,synthetic
+"पंजाब नेशनल बैंक: <AMOUNT> का होम लोन पूर्व-स्वीकृत हुआ है। वितरण के लिए <AMOUNT> स्टांप शुल्क खाते <ACCT> में भेजें। विवरण के लिए <PHONE> पर कॉल करें।",1,bank_impersonation,hi,synthetic
+"बैंक ऑफ बड़ौदा: दो खातों के विलय के लिए <AMOUNT> प्रशासनिक शुल्क <URL> पर भेजें। पुष्टि के लिए <PHONE> पर संपर्क करें।",1,bank_impersonation,hi,synthetic
+"केनरा बैंक: आपका खाता निष्क्रिय हो गया है। पुनः सक्रिय करने के लिए <AMOUNT> शुल्क <URL> पर भेजें या <PHONE> पर कॉल करें।",1,bank_impersonation,hi,synthetic
+"आरबीआई: नए केवाईसी नियमों के तहत सभी खाताधारकों का पुनः सत्यापन अनिवार्य है। खाता फ्रीज से बचने के लिए <PHONE> पर कॉल करें।",1,bank_impersonation,hi,synthetic
+"यस बैंक: आपके रिवॉर्ड पॉइंट <AMOUNT> के बराबर कल समाप्त हो रहे हैं। कैशबैक के लिए <PHONE> पर कॉल करें और अधिकारी खाते में जमा करेंगे।",1,bank_impersonation,hi,synthetic

@@ -1,0 +1,31 @@
+text,label,category,lang,source
+"FedEx: Your parcel (tracking <ACCT>) has been held at customs. A duty of <AMOUNT> must be paid within 24 hours to release it. Pay securely at <URL> or it will be returned.",1,delivery,en,synthetic
+"DHL Express: Delivery of your package failed due to an incomplete address. Reschedule and pay the redelivery fee of <AMOUNT> at <URL> within 48 hours to avoid return.",1,delivery,en,synthetic
+"India Post: Your registered parcel is being held at the delivery office. Verify your address and pay a handling charge of <AMOUNT> at <URL> to collect your package.",1,delivery,en,synthetic
+"Amazon Logistics: Your order could not be delivered and has been returned to warehouse. Pay a redelivery fee of <AMOUNT> at <URL> within 72 hours or the order will be cancelled.",1,delivery,en,synthetic
+"Flipkart: Your shipment has been detained at the state border check post. Pay applicable state tax of <AMOUNT> at <URL> to release and reschedule delivery.",1,delivery,en,synthetic
+"Blue Dart: Your parcel contains an item flagged by courier guidelines. Pay a clearance and inspection fee of <AMOUNT> at <URL> within 24 hours to release shipment.",1,delivery,en,synthetic
+"DTDC: Your international package from abroad is detained at customs. Outstanding customs duty of <AMOUNT> is due. Pay at <URL> to avoid confiscation.",1,delivery,en,synthetic
+"Delhivery: COD amount for your order is incorrect. Pay the difference of <AMOUNT> at <URL> before the delivery attempt tomorrow or the order will be returned.",1,delivery,en,synthetic
+"FedEx: Aapka parcel customs mein ruka hua hai. <AMOUNT> ka duty 24 ghante mein <URL> pe bharna hoga warna parcel wapas bhej diya jaayega.",1,delivery,hinglish,synthetic
+"DHL: Aapki delivery incomplete address ki wajah se fail ho gayi. Redelivery ke liye <AMOUNT> fee <URL> pe bharo 48 ghante ke andar warna parcel return hoga.",1,delivery,hinglish,synthetic
+"India Post: Aapka parcel delivery office mein ruka hai. Address confirm karein aur <AMOUNT> handling charge <URL> pe bharen apna package collect karne ke liye.",1,delivery,hinglish,synthetic
+"Amazon Logistics: Aapka order deliver nahi ho paya aur warehouse wapas gaya hai. 72 ghante mein <AMOUNT> redelivery fee <URL> pe bharo warna order cancel ho jaayega.",1,delivery,hinglish,synthetic
+"Flipkart: Aapka shipment state border check post pe ruka hua hai. <AMOUNT> ka state tax <URL> pe bharo taki delivery reschedule aur release ho sake.",1,delivery,hinglish,synthetic
+"Blue Dart: Aapke parcel mein ek item courier guidelines ke against flag hua hai. 24 ghante mein <AMOUNT> clearance fee <URL> pe bharo warna shipment hold rahega.",1,delivery,hinglish,synthetic
+"DTDC: Aapka international parcel customs mein detained hai. <AMOUNT> ka outstanding duty <URL> pe abhi bharo warna seizure ho sakti hai.",1,delivery,hinglish,synthetic
+"Delhivery: Aapke order ka COD amount galat hai. Kal ki delivery se pehle <AMOUNT> ka difference <URL> pe bharo warna order wapas bhej denge.",1,delivery,hinglish,synthetic
+"Ekart: Aapka parcel return hone wala hai kyunki address confirm nahi hua. <URL> pe address verify karein aur <AMOUNT> nominal fee bharo re-delivery ke liye.",1,delivery,hinglish,synthetic
+"XpressBees: Aapka package hub pe ruka hua hai. <AMOUNT> ki chhoti si release fee <URL> pe bharo — parcel kal subah deliver ho jaayega.",1,delivery,hinglish,synthetic
+"Shadowfax: Aapka delivery slot miss ho gaya. Naya slot book karne ke liye <AMOUNT> reschedule fee <URL> pe bharo — warna parcel 3 din baad return hoga.",1,delivery,hinglish,synthetic
+"Meesho: Seller ne aapke order ki COD amount galat set ki hai. Actual amount se <AMOUNT> ka fark hai. <URL> pe difference pay karein delivery ke liye.",1,delivery,hinglish,synthetic
+"फेडेक्स: आपका पार्सल कस्टम में रुका है। 24 घंटे में <AMOUNT> शुल्क <URL> पर भरें अन्यथा पार्सल वापस भेज दिया जाएगा।",1,delivery,hi,synthetic
+"डीएचएल: अधूरे पते के कारण डिलीवरी विफल रही। 48 घंटे में <AMOUNT> पुनर्वितरण शुल्क <URL> पर भरें अन्यथा पार्सल वापस होगा।",1,delivery,hi,synthetic
+"इंडिया पोस्ट: आपका पार्सल डिलीवरी कार्यालय में रुका है। पता सत्यापित करें और <AMOUNT> हैंडलिंग शुल्क <URL> पर भरें।",1,delivery,hi,synthetic
+"अमेज़न: आपका ऑर्डर डिलीवर नहीं हो पाया और वेयरहाउस वापस गया। 72 घंटे में <AMOUNT> पुनर्वितरण शुल्क <URL> पर भरें।",1,delivery,hi,synthetic
+"फ्लिपकार्ट: आपका शिपमेंट राज्य सीमा जांच चौकी पर रुका है। <AMOUNT> राज्य कर <URL> पर भरें तो डिलीवरी रिलीज होगी।",1,delivery,hi,synthetic
+"ब्लू डार्ट: आपके पार्सल में एक आइटम कूरियर दिशानिर्देशों के विरुद्ध है। 24 घंटे में <AMOUNT> निकासी शुल्क <URL> पर भरें।",1,delivery,hi,synthetic
+"डीटीडीसी: आपका अंतर्राष्ट्रीय पार्सल सीमा शुल्क में रुका है। <AMOUNT> बकाया शुल्क <URL> पर भरें अन्यथा जब्ती होगी।",1,delivery,hi,synthetic
+"डेल्हीवेरी: आपके ऑर्डर की सीओडी राशि गलत है। कल की डिलीवरी से पहले <AMOUNT> का अंतर <URL> पर भरें।",1,delivery,hi,synthetic
+"एक्सप्रेसबीज: आपका पैकेज हब पर रुका है। <AMOUNT> की रिलीज फीस <URL> पर भरें — कल सुबह डिलीवर हो जाएगा।",1,delivery,hi,synthetic
+"मीशो: विक्रेता ने सीओडी राशि गलत सेट की है। वास्तविक राशि से <AMOUNT> का अंतर है। डिलीवरी के लिए <URL> पर भुगतान करें।",1,delivery,hi,synthetic

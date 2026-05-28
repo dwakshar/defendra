@@ -1,0 +1,31 @@
+text,label,category,lang,source
+"ALERT: Your SBI account KYC has expired. Account will be suspended by midnight. Update KYC immediately at <URL> to restore full access, or call <PHONE>.",1,kyc,en,synthetic
+"HDFC Bank: KYC documents are pending for account <ACCT>. Your account will be temporarily frozen within 24 hours. Submit documents securely at <URL> to avoid disruption.",1,kyc,en,synthetic
+"Paytm: Your KYC is incomplete. As per RBI guidelines, your wallet will be suspended tonight. Complete KYC now at <URL> to continue transacting.",1,kyc,en,synthetic
+"JIO: SIM KYC has expired for your number. Deactivation in 12 hours. Update your KYC at <URL> or visit the nearest Jio store to avoid service loss.",1,kyc,en,synthetic
+"RBI Directive: All account holders must complete re-KYC. Account <ACCT> is non-compliant and has been flagged. Update at <URL> before the deadline to prevent suspension.",1,kyc,en,synthetic
+"Airtel: KYC verification is pending for your mobile number. Services will be suspended in 6 hours. Complete at <URL> or call <PHONE> to schedule a doorstep visit.",1,kyc,en,synthetic
+"Punjab National Bank: KYC documents for account <ACCT> are overdue. Transactions have been restricted. Submit documents at <URL> or visit your home branch immediately.",1,kyc,en,synthetic
+"UIDAI Notice: Your Aadhaar-linked bank accounts require KYC renewal per updated PMLA guidelines. Accounts will be frozen after <URL> deadline. Complete the process now.",1,kyc,en,synthetic
+"SBI bank ka important notice: Aapka KYC expire ho chuka hai. Aaj raat se account suspend hoga. Turant <URL> pe update karein ya <PHONE> pe call karein.",1,kyc,hinglish,synthetic
+"HDFC Bank: Account <ACCT> ka KYC pending hai. 24 ghante mein complete nahi kiya toh temporary freeze lagegi. Abhi <URL> pe apne documents submit karein.",1,kyc,hinglish,synthetic
+"Paytm se notice: Aapka KYC incomplete hai. RBI ke naye niyamon ke hisaab se aaj raat aapki wallet suspend ho sakti hai. <URL> pe abhi complete karein.",1,kyc,hinglish,synthetic
+"Jio ka notice: Aapka SIM KYC expire ho gaya. Kal subah tak number band ho jaega. <URL> pe update karein ya <PHONE> pe call karein nearest store ke liye.",1,kyc,hinglish,synthetic
+"Kotak Mahindra Bank: Aapka KYC incomplete hai. Kal last date hai documents ki. <URL> pe submit karein warna account se transactions par rok lag jaayegi.",1,kyc,hinglish,synthetic
+"Airtel urgent: Aapka number KYC ke bina 6 ghante mein band ho jaayega. <URL> pe KYC complete karein ya <PHONE> pe hamare agent se baat karein.",1,kyc,hinglish,synthetic
+"ICICI Bank alert: Aapke account mein suspicious activity detect hui hai. Re-KYC ke liye account flag hua hai. <URL> pe 48 ghante mein verify karein warna freeze hoga.",1,kyc,hinglish,synthetic
+"Amazon Pay: Aapki wallet KYC incomplete hai. <AMOUNT> se zyada transactions ke liye full KYC zaroori hai. Abhi <URL> pe complete karein warna wallet hold pe jaayegi.",1,kyc,hinglish,synthetic
+"PhonePe: RBI ke guidelines ke anusaar aapka KYC mandatory hai. Aaj shaam tak <URL> pe complete karein nahi toh aapka PhonePe account suspend ho sakta hai.",1,kyc,hinglish,synthetic
+"Axis Bank: KYC nahi ki toh aapka debit card kal se suspend hoga. Documents <URL> pe upload karein ya apni nearest branch visit karein. Ref: AXS/KYC/2024/7712.",1,kyc,hinglish,synthetic
+"Yes Bank: Aapka KYC form incomplete hai. Account <ACCT> ke saare transactions hold pe hain. Immediately <URL> pe submit karein aur service restore karein.",1,kyc,hinglish,synthetic
+"Vi (Vodafone Idea): Aapka prepaid number KYC update nahi hone par kal raat band ho jaayega. Abhi <URL> pe ID upload karein ya <PHONE> dial karein.",1,kyc,hinglish,synthetic
+"एसबीआई बैंक: आपकी केवाईसी समाप्त हो गई है। आज रात 12 बजे से खाता निलंबित होगा। तुरंत <URL> पर अपडेट करें या <PHONE> पर कॉल करें।",1,kyc,hi,synthetic
+"एचडीएफसी बैंक: खाता <ACCT> का केवाईसी लंबित है। 24 घंटे में पूरा न करने पर अस्थायी रूप से फ्रीज होगा। <URL> पर दस्तावेज़ जमा करें।",1,kyc,hi,synthetic
+"पेटीएम: आरबीआई के नए नियमों के अनुसार केवाईसी अनिवार्य है। आपकी वॉलेट आज रात निलंबित हो सकती है। अभी <URL> पर पूरा करें।",1,kyc,hi,synthetic
+"जियो: आपके सिम की केवाईसी समाप्त हो गई है। 12 घंटे में नंबर बंद होगा। <URL> पर अपडेट करें या निकटतम जियो स्टोर पर जाएं।",1,kyc,hi,synthetic
+"आरबीआई निर्देश: सभी खाताधारकों को पुनः केवाईसी पूरी करनी होगी। खाता <ACCT> असंगत है। समय सीमा से पहले <URL> पर अपडेट करें।",1,kyc,hi,synthetic
+"एयरटेल: केवाईसी सत्यापन लंबित है। 6 घंटे में सेवा निलंबित होगी। <URL> पर पूरा करें या <PHONE> पर कॉल करें।",1,kyc,hi,synthetic
+"आईसीआईसीआई बैंक: संदिग्ध गतिविधि के कारण पुनः केवाईसी आवश्यक है। 48 घंटे में <URL> पर सत्यापन करें अन्यथा खाता फ्रीज होगा।",1,kyc,hi,synthetic
+"एक्सिस बैंक: केवाईसी न होने पर डेबिट कार्ड कल से बंद होगा। <URL> पर दस्तावेज़ अपलोड करें। संदर्भ: AXS/KYC/2024/7712।",1,kyc,hi,synthetic
+"यूको बैंक: केवाईसी के बिना आपका खाता निष्क्रिय हो जाएगा। इस सप्ताह की अंतिम तिथि से पहले <URL> पर दस्तावेज़ अपलोड करें।",1,kyc,hi,synthetic
+"बैंक ऑफ बड़ौदा: खाता <ACCT> केवाईसी सत्यापन के लिए चिह्नित है। दस्तावेज़ जमा करना अनिवार्य है। अभी <URL> पर जमा करें।",1,kyc,hi,synthetic
