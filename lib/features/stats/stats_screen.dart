@@ -1,4 +1,3 @@
-import 'package:fl_chart/fl_chart.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -327,7 +326,7 @@ class _ScamsOverTime extends StatelessWidget {
     return _Section(
       title: 'SCAMS OVER TIME',
       child: SizedBox(
-        height: 100,
+        height: 120,
         child: hasData
             ? _LineChart(buckets: buckets, isWeek: isWeek)
             : Center(
@@ -338,6 +337,13 @@ class _ScamsOverTime extends StatelessWidget {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Line chart — custom painter.
+// Straight segments (no bezier — bezier dips below 0 on sparse integer data).
+// Gradient fill below the line, dots on non-zero days, today ring marker,
+// faint ceiling guide at max, JetBrains Mono x-axis labels.
+// ---------------------------------------------------------------------------
+
 class _LineChart extends StatelessWidget {
   const _LineChart({required this.buckets, required this.isWeek});
   final List<DailyBucket> buckets;
@@ -345,71 +351,183 @@ class _LineChart extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final maxY = buckets
-        .map((b) => b.scamCount)
-        .fold(0, (a, b) => a > b ? a : b)
-        .toDouble();
-
-    final spots = buckets.asMap().entries.map((e) {
-      return FlSpot(e.key.toDouble(), e.value.scamCount.toDouble());
-    }).toList();
-
-    return LineChart(
-      LineChartData(
-        minX: 0,
-        maxX: (buckets.length - 1).toDouble(),
-        minY: 0,
-        maxY: maxY < 1 ? 1 : maxY + 0.5,
-        gridData: const FlGridData(show: false),
-        borderData: FlBorderData(show: false),
-        titlesData: FlTitlesData(
-          leftTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          rightTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          topTitles: const AxisTitles(sideTitles: SideTitles(showTitles: false)),
-          bottomTitles: AxisTitles(
-            sideTitles: SideTitles(
-              showTitles: true,
-              reservedSize: 22,
-              interval: isWeek ? 1 : 6,
-              getTitlesWidget: (value, meta) {
-                final idx = value.toInt();
-                if (idx < 0 || idx >= buckets.length) return const SizedBox();
-                final d = buckets[idx].date;
-                final label = isWeek ? _weekDay(d.weekday) : '${d.day}';
-                return Text(
-                  label,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
-                    fontWeight: FontWeight.w400,
-                    color: context.dMuted,
-                  ),
-                );
-              },
-            ),
-          ),
+    return CustomPaint(
+      painter: _LinePainter(
+        buckets: buckets,
+        isWeek: isWeek,
+        accentColor: DefendraColors.scam,
+        guideColor: context.dBorder,
+        labelStyle: GoogleFonts.jetBrainsMono(
+          fontSize: isWeek ? 10.0 : 9.0,
+          color: context.dMuted,
+          fontWeight: FontWeight.w400,
         ),
-        lineBarsData: [
-          LineChartBarData(
-            spots: spots,
-            isCurved: true,
-            curveSmoothness: 0.3,
-            color: DefendraColors.scam,
-            barWidth: 1.5,
-            dotData: const FlDotData(show: false),
-            belowBarData: BarAreaData(
-              show: true,
-              color: DefendraColors.scam.withValues(alpha: 0.06),
-            ),
-          ),
-        ],
       ),
+      child: const SizedBox.expand(),
     );
   }
+}
 
-  static String _weekDay(int d) {
-    const days = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
-    return days[(d - 1) % 7];
+class _LinePainter extends CustomPainter {
+  _LinePainter({
+    required this.buckets,
+    required this.isWeek,
+    required this.accentColor,
+    required this.guideColor,
+    required this.labelStyle,
+  });
+
+  final List<DailyBucket> buckets;
+  final bool isWeek;
+  final Color accentColor;
+  final Color guideColor;
+  final TextStyle labelStyle;
+
+  static const _kLabelH = 20.0;
+  static const _kTopPad  = 8.0;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final n = buckets.length;
+    if (n == 0) return;
+
+    final maxCount = buckets.fold(0, (m, b) => b.scamCount > m ? b.scamCount : m);
+    if (maxCount == 0) return;
+
+    final chartH  = size.height - _kLabelH - _kTopPad;
+    final baselineY = _kTopPad + chartH;
+
+    // Map each bucket to a canvas point.
+    Offset pt(int i) {
+      final x = n == 1 ? size.width / 2 : i * size.width / (n - 1);
+      final y = baselineY - (buckets[i].scamCount / maxCount) * chartH;
+      return Offset(x, y);
+    }
+
+    final pts = List.generate(n, pt);
+
+    // ── faint dashed ceiling guide at y = max ──────────────────────────────
+    final dashPaint = Paint()
+      ..color = guideColor
+      ..strokeWidth = 0.5;
+    const dashLen = 4.0;
+    const gapLen  = 4.0;
+    double dx = 0;
+    while (dx < size.width) {
+      canvas.drawLine(
+        Offset(dx, _kTopPad),
+        Offset((dx + dashLen).clamp(0, size.width), _kTopPad),
+        dashPaint,
+      );
+      dx += dashLen + gapLen;
+    }
+
+    // ── baseline rule ──────────────────────────────────────────────────────
+    canvas.drawLine(
+      Offset(0, baselineY),
+      Offset(size.width, baselineY),
+      Paint()..color = guideColor..strokeWidth = 0.5,
+    );
+
+    // ── gradient fill below the line ──────────────────────────────────────
+    final fillPath = Path()..moveTo(pts.first.dx, baselineY);
+    for (final p in pts) { fillPath.lineTo(p.dx, p.dy); }
+    fillPath
+      ..lineTo(pts.last.dx, baselineY)
+      ..close();
+
+    canvas.drawPath(
+      fillPath,
+      Paint()
+        ..shader = LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            accentColor.withValues(alpha: 0.18),
+            accentColor.withValues(alpha: 0.0),
+          ],
+        ).createShader(Rect.fromLTWH(0, _kTopPad, size.width, chartH)),
+    );
+
+    // ── line ──────────────────────────────────────────────────────────────
+    final linePath = Path()..moveTo(pts.first.dx, pts.first.dy);
+    for (int i = 1; i < n; i++) { linePath.lineTo(pts[i].dx, pts[i].dy); }
+
+    canvas.drawPath(
+      linePath,
+      Paint()
+        ..color = accentColor
+        ..strokeWidth = 1.5
+        ..style = PaintingStyle.stroke
+        ..strokeJoin = StrokeJoin.round
+        ..strokeCap = StrokeCap.round,
+    );
+
+    // ── dots on non-zero days ─────────────────────────────────────────────
+    for (int i = 0; i < n; i++) {
+      if (buckets[i].scamCount == 0) continue;
+      final isToday = i == n - 1;
+
+      if (isToday) {
+        // Outer ring
+        canvas.drawCircle(
+          pts[i],
+          5.5,
+          Paint()
+            ..color = accentColor.withValues(alpha: 0.25)
+            ..style = PaintingStyle.fill,
+        );
+        canvas.drawCircle(
+          pts[i],
+          5.5,
+          Paint()
+            ..color = accentColor
+            ..strokeWidth = 1.0
+            ..style = PaintingStyle.stroke,
+        );
+      }
+
+      // Filled dot
+      canvas.drawCircle(
+        pts[i],
+        isToday ? 3.0 : 2.5,
+        Paint()..color = accentColor,
+      );
+    }
+
+    // ── x-axis labels ─────────────────────────────────────────────────────
+    for (int i = 0; i < n; i++) {
+      final label = _label(i, n);
+      if (label == null) continue;
+
+      final tp = TextPainter(
+        text: TextSpan(text: label, style: labelStyle),
+        textDirection: TextDirection.ltr,
+        textAlign: TextAlign.center,
+      )..layout(maxWidth: 32);
+
+      tp.paint(
+        canvas,
+        Offset(pts[i].dx - tp.width / 2, size.height - _kLabelH + 4),
+      );
+    }
   }
+
+  String? _label(int i, int n) {
+    if (isWeek) {
+      const abbr = ['M', 'T', 'W', 'T', 'F', 'S', 'S'];
+      return abbr[(buckets[i].date.weekday - 1) % 7];
+    }
+    // 30 D: first, every 7th, last
+    if (i == 0 || i % 7 == 0 || i == n - 1) {
+      return '${buckets[i].date.day}';
+    }
+    return null;
+  }
+
+  @override
+  bool shouldRepaint(_LinePainter old) =>
+      !identical(old.buckets, buckets) || old.isWeek != isWeek;
 }
 
 // ---------------------------------------------------------------------------

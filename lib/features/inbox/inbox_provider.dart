@@ -130,10 +130,7 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
     super.dispose();
   }
 
-  Verdict _toVerdict(ScanResult result) {
-    if (!result.label.isScam) return Verdict.safe;
-    return result.ruleOverride ? Verdict.suspicious : Verdict.scam;
-  }
+  Verdict _toVerdict(ScanResult result) => result.verdict;
 }
 
 // ---------------------------------------------------------------------------
