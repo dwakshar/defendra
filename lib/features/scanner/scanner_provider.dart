@@ -5,11 +5,13 @@ class ScannerState {
   final bool isLoading;
   final ScanResult? result;
   final String? error;
+  final bool isSaved;
 
   const ScannerState({
     this.isLoading = false,
     this.result,
     this.error,
+    this.isSaved = false,
   });
 }
 
@@ -39,6 +41,10 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
     } catch (e) {
       state = ScannerState(error: e.toString());
     }
+  }
+
+  void markSaved() {
+    state = ScannerState(result: state.result, isSaved: true);
   }
 
   @override

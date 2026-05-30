@@ -89,7 +89,6 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
       );
     }
 
-    final label = result.label;
     final record = ScanRecord(
       id: ScanRecord.generateId(),
       sender: sms.sender,
@@ -97,7 +96,7 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
       verdict: _toVerdict(result),
       confidence: result.confidence,
       triggeredRules: result.triggerPhrases,
-      category: label.labelDisplay,
+      category: result.category,
       timestamp: sms.timestamp,
       simSlot: sms.simSlot,
     );
@@ -116,6 +115,12 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
       HapticFeedback.mediumImpact();
       await NotificationService.showScamAlert(record);
     }
+  }
+
+  Future<void> saveManual(ScanRecord record) async {
+    final box = await Hive.openBox<ScanRecord>('scan_results');
+    await box.add(record);
+    if (mounted) state = [record, ...state];
   }
 
   Future<void> clearAll() async {

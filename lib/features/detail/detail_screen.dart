@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:share_plus/share_plus.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/theme/colors.dart';
 import '../../core/theme/typography.dart';
@@ -95,6 +97,17 @@ class _VerdictHeader extends StatelessWidget {
   const _VerdictHeader({required this.record});
   final ScanRecord record;
 
+  static String _categoryLabel(String cat) => switch (cat) {
+        'otp'             => 'OTP Scam',
+        'kyc'             => 'KYC / Bank Fraud',
+        'delivery'        => 'Delivery Scam',
+        'job'             => 'Job Scam',
+        'lottery'         => 'Lottery Scam',
+        'digital_arrest'  => 'Digital Arrest',
+        'safe'            => 'Safe',
+        _                 => 'Scam',
+      };
+
   Color get _dot => switch (record.verdict) {
         Verdict.safe => DefendraColors.safe,
         Verdict.suspicious => DefendraColors.suspicious,
@@ -143,7 +156,7 @@ class _VerdictHeader extends StatelessWidget {
             style: context.dtMonoSmall,
           ),
           const SizedBox(width: 8),
-          Text(record.category, style: context.dtMonoSmall),
+          Text(_categoryLabel(record.category), style: context.dtMonoSmall),
         ],
       ),
     );
@@ -293,16 +306,14 @@ class _ActionsRow extends StatelessWidget {
         Expanded(
           child: _ActionButton(
             label: 'Report 1930',
-            onTap: () => _showSnack(
-                context, 'Call 1930 — India Cyber Fraud Helpline'),
+            onTap: () => _call1930(context),
           ),
         ),
         const SizedBox(width: 8),
         Expanded(
           child: _ActionButton(
             label: 'Block sender',
-            onTap: () => _showSnack(
-                context, 'Open your dialer to block ${record.sender}'),
+            onTap: () => _blockSender(context),
           ),
         ),
         const SizedBox(width: 8),
@@ -334,16 +345,36 @@ class _ActionsRow extends StatelessWidget {
     );
   }
 
+  Future<void> _call1930(BuildContext context) async {
+    final uri = Uri.parse('tel:1930');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+    } else if (context.mounted) {
+      _showSnack(context, 'Could not open dialer');
+    }
+  }
+
+  Future<void> _blockSender(BuildContext context) async {
+    // Android has no standard URI to directly block; open dialer with number
+    // so user can tap ⋮ → Block in the phone app.
+    final uri = Uri.parse('tel:${Uri.encodeComponent(record.sender)}');
+    if (await canLaunchUrl(uri)) {
+      await launchUrl(uri);
+      if (context.mounted) {
+        _showSnack(context, 'Tap ⋮ → Block in your phone app');
+      }
+    } else if (context.mounted) {
+      _showSnack(context, 'Could not open dialer');
+    }
+  }
+
   Future<void> _shareWarning(BuildContext context) async {
     final warning =
         '[Defendra] Scam SMS from ${record.sender}:\n\n"${record.body}"\n\n'
         'Verdict: ${record.verdict.name.toUpperCase()} '
         '(${(record.confidence * 100).toStringAsFixed(0)}% confidence).\n'
         'Report scams: 1930 | cybercrime.gov.in';
-    await Clipboard.setData(ClipboardData(text: warning));
-    if (context.mounted) {
-      _showSnack(context, 'Warning copied to clipboard');
-    }
+    await Share.share(warning);
   }
 }
 

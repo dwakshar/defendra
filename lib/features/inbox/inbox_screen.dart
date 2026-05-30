@@ -69,6 +69,12 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
             onPressed: _toggleSearch,
             splashRadius: 20,
           ),
+          IconButton(
+            icon: Icon(Icons.delete_sweep_outlined, color: context.dMuted, size: 18),
+            splashRadius: 20,
+            tooltip: 'Clear inbox',
+            onPressed: () => _confirmClear(context),
+          ),
         ],
       ),
       body: Column(
@@ -179,6 +185,38 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
   Future<void> _requestPermission() async {
     final status = await Permission.sms.request();
     if (mounted) setState(() => _permissionDenied = !status.isGranted);
+  }
+
+  Future<void> _confirmClear(BuildContext context) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.dCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: context.dBorder, width: 0.5),
+        ),
+        title: Text('Clear inbox?',
+            style: context.dtMono.copyWith(color: context.dText)),
+        content: Text('All scanned messages will be deleted.',
+            style: context.dtBody.copyWith(color: context.dMuted, fontSize: 13)),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text('Cancel',
+                style: context.dtMonoSmall.copyWith(color: context.dMuted)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text('Clear',
+                style: context.dtMonoSmall.copyWith(color: DefendraColors.scam)),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true) {
+      await ref.read(inboxNotifierProvider.notifier).clearAll();
+    }
   }
 
   void _toggleSearch() {

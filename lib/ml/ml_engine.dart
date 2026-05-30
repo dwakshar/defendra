@@ -233,7 +233,7 @@ class MlEngine {
   /// alongside the Python reference so parity can be confirmed at startup.
   Future<void> debugTokenizerParity() async {
     if (!_ready) return;
-    const pythonRefNoPeriod = [101, 26038, 10114, 154, 15611, 14924, 102];
+    const pythonRefNoPeriod = [101, 50986, 10160, 126, 46161, 18745, 102];
     try {
       final replyPort = ReceivePort();
       _isolatePort!.send(_IsolateParity(replyPort.sendPort));
@@ -388,11 +388,17 @@ class MlEngine {
       ruleOverride = true;
     }
 
+    // ML argmax only knows 3 categories — rule signals are more accurate for
+    // category assignment, so prefer them over the ML's category output.
+    final category = verdict == Verdict.safe
+        ? 'safe'
+        : _categoryFromSignals(keys, scamCategory);
+
     return ScanResult(
       label: label,
       verdict: verdict,
-      confidence: pScamTotal,
-      category: label.categoryId,
+      confidence: verdict == Verdict.safe ? pSafe : pScamTotal,
+      category: category,
       triggerPhrases: reasons,
       firedSignalKeys: keys,
       ruleOverride: ruleOverride,
@@ -430,6 +436,22 @@ class MlEngine {
       ruleOverride: true,
       isError: isError,
     );
+  }
+
+  // Rule signals are more specific than the ML's 3-class category output.
+  // Priority: high-specificity rules first, ML argmax as last resort.
+  static String _categoryFromSignals(List<String> keys, ScamLabel mlCategory) {
+    if (keys.contains('digital_arrest')) return 'digital_arrest';
+    if (keys.contains('delivery_fee')) return 'delivery';
+    if (keys.contains('lottery')) return 'lottery';
+    if (keys.contains('job_scam')) return 'job';
+    if (keys.contains('kyc_fraud') || keys.contains('bank_impersonation')) return 'kyc';
+    if (keys.contains('otp_request')) return 'otp';
+    return switch (mlCategory) {
+      ScamLabel.deliveryCourier => 'delivery',
+      ScamLabel.digitalArrest  => 'digital_arrest',
+      _                        => 'kyc',
+    };
   }
 
   List<double> _softmax(List<double> logits) {
