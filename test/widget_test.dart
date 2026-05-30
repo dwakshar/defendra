@@ -4,7 +4,7 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   testWidgets('app renders home shell', (WidgetTester tester) async {
-    await tester.pumpWidget(const ProviderScope(child: DefendraApp()));
+    await tester.pumpWidget(const ProviderScope(child: DefendraApp(showOnboarding: false)));
     await tester.pump();
 
     expect(find.text('SCAN'), findsOneWidget);

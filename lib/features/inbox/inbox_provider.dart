@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
@@ -8,6 +9,7 @@ import '../../core/platform/sms_channel.dart';
 import '../../core/notifications/notification_service.dart';
 import '../../data/models/scan_record.dart';
 import '../../ml/ml_engine.dart';
+import '../settings/settings_provider.dart';
 
 // ---------------------------------------------------------------------------
 // smsStreamProvider
@@ -55,11 +57,22 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
 
     await _engine.load();
     _engineReady.complete();
-    debugPrint('[D0] engine ready, SMS listener active');
+    if (_engine.isReady) {
+      debugPrint('[D0] engine ready, SMS listener active');
+    } else {
+      debugPrint('[D0] engine FAILED to load: ${_engine.loadError}');
+    }
   }
 
   Future<void> _onSms(SmsMessage sms) async {
     debugPrint('[D3] notifier received sms from ${sms.sender}');
+
+    final whitelist = _ref.read(whitelistProvider);
+    if (whitelist.any((w) => sms.sender.toLowerCase() == w.toLowerCase())) {
+      debugPrint('[D3-WL] ${sms.sender} whitelisted, skipping');
+      return;
+    }
+
     await _engineReady.future;
 
     ScanResult result;
@@ -98,7 +111,9 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
       state = [record, ...state];
     }
 
-    if (record.verdict == Verdict.scam && record.confidence > 0.85) {
+    final threshold = _ref.read(sensitivityProvider);
+    if (record.verdict == Verdict.scam && record.confidence > threshold) {
+      HapticFeedback.mediumImpact();
       await NotificationService.showScamAlert(record);
     }
   }

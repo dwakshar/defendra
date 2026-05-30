@@ -1,49 +1,86 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import '../../core/theme/colors.dart';
 import '../../core/theme/typography.dart';
 import '../../data/models/scan_record.dart';
+import '../../ml/explanation.dart';
 import '../../ml/rule_matcher.dart';
 
-class DetailScreen extends StatelessWidget {
+class DetailScreen extends StatefulWidget {
   const DetailScreen({super.key, required this.record});
-
   final ScanRecord record;
 
   @override
+  State<DetailScreen> createState() => _DetailScreenState();
+}
+
+class _DetailScreenState extends State<DetailScreen>
+    with SingleTickerProviderStateMixin {
+  late AnimationController _ctrl;
+  late Animation<double> _fade;
+
+  @override
+  void initState() {
+    super.initState();
+    _ctrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 220),
+    );
+    _fade = CurvedAnimation(parent: _ctrl, curve: Curves.easeOut);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _ctrl.forward();
+      if (widget.record.verdict == Verdict.scam) {
+        HapticFeedback.lightImpact();
+      }
+    });
+  }
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Hero(
-      tag: 'scan_${record.id}',
-      child: Material(
-        color: DefendraColors.canvas,
-        child: Scaffold(
-          backgroundColor: DefendraColors.canvas,
-          appBar: AppBar(
-            backgroundColor: DefendraColors.canvas,
-            elevation: 0,
-            scrolledUnderElevation: 0,
-            iconTheme: const IconThemeData(color: DefendraColors.muted),
-            title: Text(
-              record.sender,
-              style: DefendraType.mono.copyWith(fontSize: 13),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          body: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 8, 16, 32),
-            children: [
-              _VerdictCard(record: record),
+    final explanation = RuleMatcher.explain(widget.record.body);
+
+    return Scaffold(
+      backgroundColor: context.dCanvas,
+      appBar: AppBar(
+        backgroundColor: context.dCanvas,
+        elevation: 0,
+        scrolledUnderElevation: 0,
+        iconTheme: IconThemeData(color: context.dMuted),
+        title: Text(
+          widget.record.sender,
+          style: context.dtMono.copyWith(fontSize: 13),
+          overflow: TextOverflow.ellipsis,
+        ),
+      ),
+      body: FadeTransition(
+        opacity: _fade,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
+          children: [
+            _VerdictHeader(record: widget.record),
+            const SizedBox(height: 16),
+            _SmsBodyCard(
+                body: widget.record.body, spans: explanation.spans),
+            if (explanation.signals.isNotEmpty) ...[
               const SizedBox(height: 16),
-              _BodyCard(record: record),
-              if (record.triggeredRules.isNotEmpty) ...[
-                const SizedBox(height: 16),
-                _RulesCard(rules: record.triggeredRules),
-              ],
-              const SizedBox(height: 16),
-              _MetadataFooter(record: record),
+              _SignalsPanel(signals: explanation.signals),
+              const SizedBox(height: 12),
+              _ReasonPanel(reason: explanation.reason),
             ],
-          ),
+            const SizedBox(height: 16),
+            _ActionsRow(record: widget.record),
+            const SizedBox(height: 20),
+            _MetadataFooter(record: widget.record),
+          ],
         ),
       ),
     );
@@ -51,15 +88,14 @@ class DetailScreen extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Verdict card
+// Verdict header — Hero dot + label + confidence
 // ---------------------------------------------------------------------------
 
-class _VerdictCard extends StatelessWidget {
-  const _VerdictCard({required this.record});
-
+class _VerdictHeader extends StatelessWidget {
+  const _VerdictHeader({required this.record});
   final ScanRecord record;
 
-  Color get _accent => switch (record.verdict) {
+  Color get _dot => switch (record.verdict) {
         Verdict.safe => DefendraColors.safe,
         Verdict.suspicious => DefendraColors.suspicious,
         Verdict.scam => DefendraColors.scam,
@@ -74,35 +110,40 @@ class _VerdictCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
       decoration: BoxDecoration(
-        color: DefendraColors.card,
-        border: Border.all(color: _accent, width: 1),
+        color: context.dCard,
+        border: Border.all(color: context.dBorder, width: 0.5),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+      child: Row(
         children: [
+          // Hero dot — destination matches inbox _ScanCard source
+          Hero(
+            tag: 'dot_${record.id}',
+            child: Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(color: _dot, shape: BoxShape.circle),
+            ),
+          ),
+          const SizedBox(width: 10),
           Text(
             _label,
             style: GoogleFonts.jetBrainsMono(
-              fontSize: 22,
-              fontWeight: FontWeight.w700,
-              color: _accent,
-              letterSpacing: 2,
+              fontSize: 13,
+              fontWeight: FontWeight.w500,
+              color: context.dText,
+              letterSpacing: 0.5,
             ),
           ),
-          const SizedBox(height: 6),
+          const Spacer(),
           Text(
-            '${(record.confidence * 100).toStringAsFixed(1)}% confidence',
-            style: DefendraType.monoSmall,
+            '${(record.confidence * 100).toStringAsFixed(1)}%',
+            style: context.dtMonoSmall,
           ),
-          const SizedBox(height: 2),
-          Text(
-            record.category,
-            style: DefendraType.monoSmall,
-          ),
+          const SizedBox(width: 8),
+          Text(record.category, style: context.dtMonoSmall),
         ],
       ),
     );
@@ -110,116 +151,228 @@ class _VerdictCard extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// Body card — RichText with highlighted trigger phrases
+// SMS body — RichText with dashed red underlines on matched spans
 // ---------------------------------------------------------------------------
 
-class _BodyCard extends StatelessWidget {
-  const _BodyCard({required this.record});
+class _SmsBodyCard extends StatelessWidget {
+  const _SmsBodyCard({required this.body, required this.spans});
+  final String body;
+  final List<TriggerSpan> spans;
 
-  final ScanRecord record;
-
-  List<TextSpan> _buildSpans(String body) {
-    final matches = RuleMatcher.allMatches(body);
-
-    // Merge overlapping ranges
-    final merged = <(int, int)>[];
-    for (final m in matches) {
-      if (merged.isEmpty || m.start >= merged.last.$2) {
-        merged.add((m.start, m.end));
-      } else if (m.end > merged.last.$2) {
-        merged[merged.length - 1] = (merged.last.$1, m.end);
-      }
-    }
-
-    final baseStyle = GoogleFonts.jetBrainsMono(
+  List<TextSpan> _buildSpans(BuildContext context) {
+    final base = GoogleFonts.jetBrainsMono(
       fontSize: 13,
-      color: DefendraColors.text,
-      height: 1.6,
+      fontWeight: FontWeight.w400,
+      color: context.dText,
+      height: 1.65,
     );
-    final highlightStyle = baseStyle.copyWith(
+    final flagged = base.copyWith(
       decoration: TextDecoration.underline,
-      decorationColor: DefendraColors.suspicious,
+      decorationStyle: TextDecorationStyle.dashed,
+      decorationColor: DefendraColors.scam,
       decorationThickness: 1.5,
     );
 
-    if (merged.isEmpty) return [TextSpan(text: body, style: baseStyle)];
+    if (spans.isEmpty) return [TextSpan(text: body, style: base)];
 
-    final spans = <TextSpan>[];
+    final result = <TextSpan>[];
     int cursor = 0;
-
-    for (final (start, end) in merged) {
-      if (start > cursor) {
-        spans.add(TextSpan(text: body.substring(cursor, start), style: baseStyle));
+    for (final span in spans) {
+      if (span.start > cursor) {
+        result.add(TextSpan(
+            text: body.substring(cursor, span.start), style: base));
       }
-      spans.add(TextSpan(text: body.substring(start, end), style: highlightStyle));
-      cursor = end;
+      result.add(TextSpan(
+          text: body.substring(span.start, span.end), style: flagged));
+      cursor = span.end;
     }
-
     if (cursor < body.length) {
-      spans.add(TextSpan(text: body.substring(cursor), style: baseStyle));
+      result.add(TextSpan(text: body.substring(cursor), style: base));
     }
-
-    return spans;
+    return result;
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
-        color: DefendraColors.card,
-        border: Border.all(color: DefendraColors.border),
+        color: context.dCard,
+        border: Border.all(color: context.dBorder, width: 0.5),
         borderRadius: BorderRadius.circular(8),
       ),
-      child: RichText(
-        text: TextSpan(children: _buildSpans(record.body)),
+      child: RichText(text: TextSpan(children: _buildSpans(context))),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Signals chips
+// ---------------------------------------------------------------------------
+
+class _SignalsPanel extends StatelessWidget {
+  const _SignalsPanel({required this.signals});
+  final List<String> signals;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('signals', style: context.dtMonoSmall),
+        const SizedBox(height: 8),
+        Wrap(
+          spacing: 6,
+          runSpacing: 6,
+          children: signals.map((key) => _Chip(label: key)).toList(),
+        ),
+      ],
+    );
+  }
+}
+
+class _Chip extends StatelessWidget {
+  const _Chip({required this.label});
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: context.dCard,
+        border: Border.all(color: context.dBorder, width: 0.5),
+        borderRadius: BorderRadius.circular(4),
+      ),
+      child: Text(
+        label,
+        style: GoogleFonts.jetBrainsMono(
+          fontSize: 11,
+          fontWeight: FontWeight.w400,
+          color: context.dMuted,
+        ),
       ),
     );
   }
 }
 
 // ---------------------------------------------------------------------------
-// Triggered rules card
+// Reason sentence
 // ---------------------------------------------------------------------------
 
-class _RulesCard extends StatelessWidget {
-  const _RulesCard({required this.rules});
-
-  final List<String> rules;
+class _ReasonPanel extends StatelessWidget {
+  const _ReasonPanel({required this.reason});
+  final String reason;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: DefendraColors.card,
-        border: Border.all(color: DefendraColors.border),
-        borderRadius: BorderRadius.circular(8),
+    return Text(
+      reason,
+      style: context.dtMono.copyWith(
+        color: context.dMuted,
+        fontSize: 13,
+        height: 1.55,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text('why this was flagged', style: DefendraType.label),
-          const SizedBox(height: 10),
-          for (final rule in rules) ...[
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text('> ', style: DefendraType.monoSmall.copyWith(
-                  color: DefendraColors.suspicious,
-                )),
-                Expanded(
-                  child: Text(rule, style: DefendraType.monoSmall.copyWith(
-                    color: DefendraColors.text,
-                  )),
-                ),
-              ],
-            ),
-            if (rule != rules.last) const SizedBox(height: 6),
-          ],
-        ],
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Actions row
+// ---------------------------------------------------------------------------
+
+class _ActionsRow extends StatelessWidget {
+  const _ActionsRow({required this.record});
+  final ScanRecord record;
+
+  @override
+  Widget build(BuildContext context) {
+    return Row(
+      children: [
+        Expanded(
+          child: _ActionButton(
+            label: 'Report 1930',
+            onTap: () => _showSnack(
+                context, 'Call 1930 — India Cyber Fraud Helpline'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ActionButton(
+            label: 'Block sender',
+            onTap: () => _showSnack(
+                context, 'Open your dialer to block ${record.sender}'),
+          ),
+        ),
+        const SizedBox(width: 8),
+        Expanded(
+          child: _ActionButton(
+            label: 'Share',
+            onTap: () => _shareWarning(context),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _showSnack(BuildContext context, String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(
+          msg,
+          style: context.dtMonoSmall.copyWith(color: context.dText),
+        ),
+        backgroundColor: context.dCard,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+          side: BorderSide(color: context.dBorder, width: 0.5),
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+
+  Future<void> _shareWarning(BuildContext context) async {
+    final warning =
+        '[Defendra] Scam SMS from ${record.sender}:\n\n"${record.body}"\n\n'
+        'Verdict: ${record.verdict.name.toUpperCase()} '
+        '(${(record.confidence * 100).toStringAsFixed(0)}% confidence).\n'
+        'Report scams: 1930 | cybercrime.gov.in';
+    await Clipboard.setData(ClipboardData(text: warning));
+    if (context.mounted) {
+      _showSnack(context, 'Warning copied to clipboard');
+    }
+  }
+}
+
+class _ActionButton extends StatelessWidget {
+  const _ActionButton({required this.label, required this.onTap});
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        padding: const EdgeInsets.symmetric(vertical: 10),
+        decoration: BoxDecoration(
+          color: Colors.transparent,
+          border: Border.all(color: context.dBorder, width: 0.5),
+          borderRadius: BorderRadius.circular(6),
+        ),
+        alignment: Alignment.center,
+        child: Text(
+          label,
+          style: GoogleFonts.jetBrainsMono(
+            fontSize: 10,
+            fontWeight: FontWeight.w400,
+            color: context.dMuted,
+          ),
+          overflow: TextOverflow.ellipsis,
+        ),
       ),
     );
   }
@@ -231,7 +384,6 @@ class _RulesCard extends StatelessWidget {
 
 class _MetadataFooter extends StatelessWidget {
   const _MetadataFooter({required this.record});
-
   final ScanRecord record;
 
   static const _months = [
@@ -239,7 +391,7 @@ class _MetadataFooter extends StatelessWidget {
     'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
   ];
 
-  String _formatTimestamp(DateTime dt) {
+  String _fmt(DateTime dt) {
     final h = dt.hour.toString().padLeft(2, '0');
     final m = dt.minute.toString().padLeft(2, '0');
     final s = dt.second.toString().padLeft(2, '0');
@@ -251,16 +403,10 @@ class _MetadataFooter extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(
-          _formatTimestamp(record.timestamp),
-          style: DefendraType.monoSmall,
-        ),
+        Text(_fmt(record.timestamp), style: context.dtMonoSmall),
         if (record.simSlot > 0) ...[
           const SizedBox(height: 4),
-          Text(
-            'SIM ${record.simSlot + 1}',
-            style: DefendraType.monoSmall,
-          ),
+          Text('SIM ${record.simSlot + 1}', style: context.dtMonoSmall),
         ],
       ],
     );

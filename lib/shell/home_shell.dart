@@ -6,7 +6,6 @@ import '../features/inbox/inbox_screen.dart';
 import '../features/stats/stats_screen.dart';
 import '../features/settings/settings_screen.dart';
 
-// active tab index
 final _tabIndexProvider = StateProvider<int>((ref) => 0);
 
 const _screens = [
@@ -17,22 +16,10 @@ const _screens = [
 ];
 
 const _navItems = [
-  BottomNavigationBarItem(
-    icon: Icon(Icons.terminal_outlined),
-    label: 'Scan',
-  ),
-  BottomNavigationBarItem(
-    icon: Icon(Icons.inbox_outlined),
-    label: 'Inbox',
-  ),
-  BottomNavigationBarItem(
-    icon: Icon(Icons.bar_chart_outlined),
-    label: 'Stats',
-  ),
-  BottomNavigationBarItem(
-    icon: Icon(Icons.settings_outlined),
-    label: 'Settings',
-  ),
+  BottomNavigationBarItem(icon: Icon(Icons.terminal_outlined), label: 'Scan'),
+  BottomNavigationBarItem(icon: Icon(Icons.inbox_outlined), label: 'Inbox'),
+  BottomNavigationBarItem(icon: Icon(Icons.bar_chart_outlined), label: 'Stats'),
+  BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), label: 'Settings'),
 ];
 
 class HomeShell extends ConsumerStatefulWidget {
@@ -48,16 +35,15 @@ class _HomeShellState extends ConsumerState<HomeShell> {
     final currentIndex = ref.watch(_tabIndexProvider);
 
     return Scaffold(
-      backgroundColor: DefendraColors.canvas,
+      backgroundColor: context.dCanvas,
       body: IndexedStack(
         index: currentIndex,
         children: _screens,
       ),
-      // 0.5px top hairline on the nav bar
       bottomNavigationBar: Container(
-        decoration: const BoxDecoration(
+        decoration: BoxDecoration(
           border: Border(
-            top: BorderSide(color: DefendraColors.border, width: 0.5),
+            top: BorderSide(color: context.dBorder, width: 0.5),
           ),
         ),
         child: BottomNavigationBar(

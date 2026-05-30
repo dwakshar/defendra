@@ -43,3 +43,6 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# Large ML model — distribute via GitHub Releases
+assets/ml/model.tflite

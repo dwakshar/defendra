@@ -22,11 +22,11 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
 
   Future<void> _init() async {
     state = const ScannerState(isLoading: true);
-    try {
-      await _engine.load();
+    await _engine.load();
+    if (_engine.loadError != null) {
+      state = ScannerState(error: 'Model failed to load: ${_engine.loadError}');
+    } else {
       state = const ScannerState();
-    } catch (e) {
-      state = ScannerState(error: 'Model failed to load: $e');
     }
   }
 
@@ -34,7 +34,7 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
     if (!_engine.isReady) return;
     state = const ScannerState(isLoading: true);
     try {
-      final result = _engine.scan(text);
+      final result = await _engine.scan(text);
       state = ScannerState(result: result);
     } catch (e) {
       state = ScannerState(error: e.toString());
