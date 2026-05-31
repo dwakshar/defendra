@@ -105,13 +105,7 @@ Overall accuracy (97.40%) is dominated by the 87.6% safe majority. The minority-
 
 **Confusion matrix (rows = actual, columns = predicted):**
 
-```
-                   pred:safe  pred:otp_kyc  pred:delivery  pred:dig_arrest
-actual:safe           400            4              0               0
-actual:otp_kyc          1           38              0               2
-actual:delivery         0            3              5               0
-actual:dig_arrest       0            2              0               6
-```
+<img src="docs/confusion_matrix.png" alt="Confusion matrix — INT8 model, n=461" width="600"/>
 
 Notable patterns: 3 of 8 delivery messages are misclassified as `otp_kyc` (both categories share urgency language and amount mentions). 2 digital-arrest messages are classified as `otp_kyc` (authority-impersonation patterns overlap). Zero false scams classified as each other across the safe/scam boundary — the model does not invent scam verdicts for safe messages.
 
