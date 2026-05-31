@@ -17,6 +17,12 @@ class MainActivity : FlutterActivity() {
             // Kotlin → Dart only; no calls arrive from Dart on this channel.
             channel.setMethodCallHandler(null)
             SmsReceiver.methodChannel = channel
+            // Drain any SMS buffered while the app was killed.
+            // The 2 s delay gives the Dart MethodCallHandler time to register
+            // before the buffered messages are delivered.
+            android.os.Handler(android.os.Looper.getMainLooper()).postDelayed({
+                SmsReceiver.drainBuffer(applicationContext, channel)
+            }, 2_000L)
         }
     }
 

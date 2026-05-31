@@ -5,7 +5,6 @@ import 'core/notifications/notification_service.dart';
 import 'core/theme/app_theme.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/settings/settings_provider.dart';
-import 'features/splash/splash_screen.dart';
 import 'shell/home_shell.dart';
 
 void main() async {
@@ -34,9 +33,7 @@ class DefendraApp extends ConsumerWidget {
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: lightMode ? ThemeMode.light : ThemeMode.dark,
-      home: SplashScreen(
-        next: showOnboarding ? const OnboardingScreen() : const HomeShell(),
-      ),
+      home: showOnboarding ? const OnboardingScreen() : const HomeShell(),
     );
   }
 }

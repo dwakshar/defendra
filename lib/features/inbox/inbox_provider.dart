@@ -41,6 +41,15 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
   final _engineReady = Completer<void>();
 
   Future<void> _init() async {
+    // Register the SMS listener FIRST — before any async I/O — so the Dart
+    // MethodCallHandler is live as early as possible.  Any Kotlin invokeMethod
+    // call that arrives before this line is registered cannot be delivered;
+    // moving it here shrinks that window to milliseconds instead of the full
+    // Hive-open + model-load latency.
+    _ref.listen<AsyncValue<SmsMessage>>(smsStreamProvider, (_, next) {
+      next.whenData(_onSms);
+    });
+
     if (!Hive.isAdapterRegistered(0)) {
       Hive.registerAdapter(VerdictAdapter());
     }
@@ -48,20 +57,19 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
       Hive.registerAdapter(ScanRecordAdapter());
     }
 
-    final box = await Hive.openBox<ScanRecord>('scan_results');
-    if (mounted) {
-      state = box.values.toList()
-        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    try {
+      final box = await Hive.openBox<ScanRecord>('scan_results');
+      if (mounted) {
+        state = box.values.toList()
+          ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+      }
+      await _engine.load();
+    } finally {
+      // Always complete so _onSms is never permanently stuck on this future,
+      // even when Hive or the model loader throws unexpectedly.
+      if (!_engineReady.isCompleted) _engineReady.complete();
     }
 
-    // Register the listener before awaiting load so SMS arriving during the
-    // ~3–5 s model-load window are not dropped by the broadcast stream.
-    _ref.listen<AsyncValue<SmsMessage>>(smsStreamProvider, (_, next) {
-      next.whenData(_onSms);
-    });
-
-    await _engine.load();
-    _engineReady.complete();
     if (_engine.isReady) {
       debugPrint('[D0] engine ready, SMS listener active');
       if (kDebugMode) {
@@ -111,7 +119,9 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
     );
     debugPrint('[D4] verdict: ${record.verdict} conf: ${record.confidence}');
 
-    final box = Hive.box<ScanRecord>('scan_results');
+    // openBox returns the already-open box if available, or opens it if Hive
+    // init succeeded but the box was closed (e.g., after a Hive error in _init).
+    final box = await Hive.openBox<ScanRecord>('scan_results');
     await box.add(record);
     debugPrint('[D5] hive write done, state length will be: ${state.length + 1}');
 

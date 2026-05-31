@@ -346,7 +346,7 @@ class MlEngine {
   Future<void> load() async {
     final loadStart = DateTime.now().millisecondsSinceEpoch;
     try {
-      final byteData = await rootBundle.load('assets/ml/model.tflite');
+      final byteData = await rootBundle.load('assets/ml/model_pruned_int8.tflite');
       // Local variable — transferred to isolate; not kept on main heap.
       final modelBytes = byteData.buffer.asUint8List();
       final vocabJson = await rootBundle.loadString('assets/ml/vocab.json');

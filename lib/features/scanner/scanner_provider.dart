@@ -41,10 +41,11 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
   }
 
   Future<void> scan(String text) async {
-    if (!_engine.isReady) return;
     state = const ScannerState(isLoading: true);
     try {
-      final result = await _engine.scan(text);
+      // classify() has a built-in rule-based fallback when the model is not
+      // ready, so scans work even if the TFLite model failed to load.
+      final result = await _engine.classify(text);
       state = ScannerState(result: result);
     } catch (e) {
       state = ScannerState(error: e.toString());
