@@ -44,5 +44,10 @@ app.*.map.json
 /android/app/profile
 /android/app/release
 
-# Large ML model — distribute via GitHub Releases
+# Large ML models — LFS-tracked variants below; duplicates/test files excluded
 assets/ml/model.tflite
+assets/ml/model_float32.tflite
+assets/ml/model_wi8_test.tflite
+
+# Android build outputs
+android/build/

@@ -23,8 +23,8 @@ const int _maxSeqLen = 96;
 List<double> _inferReuse(
   Interpreter interp,
   Map<String, List<int>> tokens,
-  List<Int32List> inputBufs,
-  Int32List segmentBuf,
+  List<Int64List> inputBufs,
+  Int64List segmentBuf,
   List<List<double>> outputBuf,
 ) {
   final inputTensors = interp.getInputTensors();
@@ -73,8 +73,8 @@ Future<void> _isolateEntry(SendPort toMain) async {
   Interpreter? interp;
   DartTokenizer? tok;
   // Pre-allocated tensor buffers — reused every inference to avoid GC pressure.
-  List<Int32List>? inputBufs;
-  Int32List? segmentBuf; // all-zeros, never mutated
+  List<Int64List>? inputBufs;
+  Int64List? segmentBuf; // all-zeros, never mutated
   List<List<double>>? outputBuf;
   bool tensorLogged = false;
 
@@ -107,9 +107,9 @@ Future<void> _isolateEntry(SendPort toMain) async {
         final inputTensors = interp.getInputTensors();
         inputBufs = List.generate(
           inputTensors.length,
-          (_) => Int32List(_maxSeqLen),
+          (_) => Int64List(_maxSeqLen),
         );
-        segmentBuf = Int32List(_maxSeqLen); // zeros; segment IDs never change
+        segmentBuf = Int64List(_maxSeqLen); // zeros; segment IDs never change
         outputBuf = [List<double>.filled(ScamLabel.values.length, 0.0)];
 
         final parsed = json.decode(msg.vocabJson) as Map<String, dynamic>;
@@ -147,6 +147,57 @@ Future<void> _isolateEntry(SendPort toMain) async {
         print('[ML-ERR] Isolate inference failed: $e\n$st');
         msg.replyTo.send('infer_error: $e');
       }
+    } else if (msg is _IsolateBenchmark) {
+      // 100 timed runs at seqlen 96 over all 4 probe texts.
+      // Reports: tokenize_us, infer_us, verdict_us (all microseconds), per run.
+      final probes = [
+        // safe
+        'Your SBI balance is Rs 12345 as on 31-May-2026. For queries call 1800.',
+        // otp_kyc
+        '<name> aapka otp <otp> hai account update ke liye hamare executive ko share karein <phone>',
+        // delivery_courier
+        'Your parcel is held at customs. Pay Rs 499 clearance fee to release. Click <url>',
+        // digital_arrest
+        'CBI officer speaking. You are under digital arrest. Do not tell anyone. Call back <phone>.',
+      ];
+
+      final tokenizeTimes = <int>[];
+      final inferTimes = <int>[];
+      final verdictTimes = <int>[];
+
+      for (int run = 0; run < msg.runs; run++) {
+        final text = probes[run % probes.length];
+
+        final t0 = DateTime.now().microsecondsSinceEpoch;
+        final tokens = tok!.tokenize(text, maxLength: _maxSeqLen);
+        final t1 = DateTime.now().microsecondsSinceEpoch;
+        final logits = _inferReuse(interp!, tokens, inputBufs!, segmentBuf!, outputBuf!);
+        final t2 = DateTime.now().microsecondsSinceEpoch;
+
+        // Verdict map (softmax + thresholds) — mirrors _buildResult without rule signals.
+        final rawSum = logits.fold(0.0, (a, b) => a + b);
+        final probs = (logits.every((v) => v >= -1e-4) && (rawSum - 1.0).abs() < 1e-2)
+            ? logits
+            : () {
+                final maxV = logits.reduce(max);
+                final exps = logits.map((v) => exp(v - maxV)).toList();
+                final s = exps.fold(0.0, (a, b) => a + b);
+                return exps.map((v) => v / s).toList();
+              }();
+        // ignore: unused_local_variable
+        final pScam = probs[1] + probs[2] + probs[3];
+        final t3 = DateTime.now().microsecondsSinceEpoch;
+
+        tokenizeTimes.add(t1 - t0);
+        inferTimes.add(t2 - t1);
+        verdictTimes.add(t3 - t2);
+      }
+
+      msg.replyTo.send({
+        'tokenize_us': tokenizeTimes,
+        'infer_us': inferTimes,
+        'verdict_us': verdictTimes,
+      });
     } else if (msg is _IsolateParity) {
       // Tokenizer-only: no inference. Returns trimmed (non-padded) IDs.
       const testStrings = ['Meeting at 5 PM today.', 'Meeting at 5 PM today'];
@@ -196,6 +247,10 @@ class MlEngine {
 
   /// Non-null when load() failed; surface this to the UI instead of crashing.
   String? get loadError => _loadError;
+
+  /// Wall-clock milliseconds for the last load() call (model read + isolate init).
+  int? get coldStartMs => _coldStartMs;
+  int? _coldStartMs;
 
   // Test-only surface -------------------------------------------------------
 
@@ -266,10 +321,30 @@ class MlEngine {
     _ready = false;
   }
 
+  /// Runs [runs] classify cycles in the isolate and returns timing statistics.
+  /// Each cycle: tokenize → infer → verdict map (softmax + threshold).
+  /// Also includes the stored cold-start load time.
+  Future<BenchmarkResult> benchmark({int runs = 100}) async {
+    if (!_ready) throw StateError('MlEngine not ready; call load() first.');
+    final replyPort = ReceivePort();
+    _isolatePort!.send(_IsolateBenchmark(runs, replyPort.sendPort));
+    final raw = await replyPort.first as Map;
+    replyPort.close();
+
+    List<int> us(String key) => List<int>.from(raw[key] as List);
+    return BenchmarkResult(
+      tokenizeUs: us('tokenize_us'),
+      inferUs: us('infer_us'),
+      verdictUs: us('verdict_us'),
+      coldStartMs: _coldStartMs,
+    );
+  }
+
   /// Spawns the persistent inference isolate and transfers model bytes once
   /// (zero-copy via TransferableTypedData).  Subsequent classify() calls send
   /// only the text string.
   Future<void> load() async {
+    final loadStart = DateTime.now().millisecondsSinceEpoch;
     try {
       final byteData = await rootBundle.load('assets/ml/model.tflite');
       // Local variable — transferred to isolate; not kept on main heap.
@@ -295,6 +370,7 @@ class MlEngine {
 
       _ready = true;
       _loadError = null;
+      _coldStartMs = DateTime.now().millisecondsSinceEpoch - loadStart;
       await debugTokenizerParity();
     } catch (e, st) {
       _ready = false;
@@ -490,6 +566,45 @@ class ScanResult {
   });
 }
 
+class BenchmarkResult {
+  final List<int> tokenizeUs;
+  final List<int> inferUs;
+  final List<int> verdictUs;
+  final int? coldStartMs;
+
+  const BenchmarkResult({
+    required this.tokenizeUs,
+    required this.inferUs,
+    required this.verdictUs,
+    this.coldStartMs,
+  });
+
+  int _median(List<int> v) {
+    final s = [...v]..sort();
+    return s[s.length ~/ 2];
+  }
+
+  int _p95(List<int> v) {
+    final s = [...v]..sort();
+    return s[(s.length * 0.95).floor()];
+  }
+
+  int get totalMedianUs => _median(List.generate(
+      tokenizeUs.length, (i) => tokenizeUs[i] + inferUs[i] + verdictUs[i]));
+  int get totalP95Us => _p95(List.generate(
+      tokenizeUs.length, (i) => tokenizeUs[i] + inferUs[i] + verdictUs[i]));
+
+  @override
+  String toString() => '''
+BenchmarkResult (n=${tokenizeUs.length})
+  tokenize  median=${_median(tokenizeUs)}µs  p95=${_p95(tokenizeUs)}µs
+  infer     median=${_median(inferUs)}µs  p95=${_p95(inferUs)}µs
+  verdict   median=${_median(verdictUs)}µs  p95=${_p95(verdictUs)}µs
+  ─────────────────────────────────────────────
+  end-to-end  median=${totalMedianUs}µs (${(totalMedianUs/1000).toStringAsFixed(1)}ms)  p95=${totalP95Us}µs (${(totalP95Us/1000).toStringAsFixed(1)}ms)
+  cold-start  ${coldStartMs != null ? '$coldStartMs ms' : 'not measured'}''';
+}
+
 class _IsolateInfer {
   final String text;
   final SendPort replyTo;
@@ -505,6 +620,12 @@ class _IsolateInit {
   final String vocabJson;
   final SendPort replyTo;
   const _IsolateInit(this.modelBytes, this.vocabJson, this.replyTo);
+}
+
+class _IsolateBenchmark {
+  final int runs;
+  final SendPort replyTo;
+  const _IsolateBenchmark(this.runs, this.replyTo);
 }
 
 class _IsolateParity {

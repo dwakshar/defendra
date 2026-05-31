@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../ml/ml_engine.dart';
 
@@ -22,6 +23,9 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
     _init();
   }
 
+  @visibleForTesting
+  ScannerNotifier.preset(ScannerState s) : super(s);
+
   Future<void> _init() async {
     state = const ScannerState(isLoading: true);
     await _engine.load();
@@ -29,6 +33,10 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
       state = ScannerState(error: 'Model failed to load: ${_engine.loadError}');
     } else {
       state = const ScannerState();
+      if (kDebugMode) {
+        final r = await _engine.benchmark(runs: 10);
+        debugPrint('[BENCHMARK]\n$r');
+      }
     }
   }
 

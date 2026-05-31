@@ -30,6 +30,11 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
     _init();
   }
 
+  @visibleForTesting
+  InboxNotifier.preset(List<ScanRecord> records, Ref ref)
+      : _ref = ref,
+        super(records);
+
   final Ref _ref;
   final MlEngine _engine = MlEngine();
 
@@ -59,6 +64,10 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
     _engineReady.complete();
     if (_engine.isReady) {
       debugPrint('[D0] engine ready, SMS listener active');
+      if (kDebugMode) {
+        final r = await _engine.benchmark(runs: 10);
+        debugPrint('[BENCHMARK]\n$r');
+      }
     } else {
       debugPrint('[D0] engine FAILED to load: ${_engine.loadError}');
     }

@@ -65,9 +65,15 @@ class PrivacyScreen extends StatelessWidget {
           const SizedBox(height: 8),
           _PrivacyCard(
             children: [
-              _StorageRow(key_: 'scan_results', value: 'Hive box — sender, body, verdict, timestamp'),
+              _StorageRow(
+                key_: 'scan_results',
+                value: 'Hive box — sender, body, verdict, timestamp',
+              ),
               _CardDivider(),
-              _StorageRow(key_: 'settings', value: 'Hive box — threshold, language, whitelist'),
+              _StorageRow(
+                key_: 'settings',
+                value: 'Hive box — threshold, language, whitelist',
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -77,11 +83,20 @@ class PrivacyScreen extends StatelessWidget {
           const SizedBox(height: 8),
           _PrivacyCard(
             children: [
-              _StorageRow(key_: 'READ_SMS', value: 'Scan incoming message body'),
+              _StorageRow(
+                key_: 'READ_SMS',
+                value: 'Scan incoming message body',
+              ),
               _CardDivider(),
-              _StorageRow(key_: 'RECEIVE_SMS', value: 'Intercept SMS as it arrives'),
+              _StorageRow(
+                key_: 'RECEIVE_SMS',
+                value: 'Intercept SMS as it arrives',
+              ),
               _CardDivider(),
-              _StorageRow(key_: 'POST_NOTIFICATIONS', value: 'Alert on high-confidence scam'),
+              _StorageRow(
+                key_: 'POST_\nNOTIFICATIONS',
+                value: 'Alert on high-confidence scam',
+              ),
             ],
           ),
           const SizedBox(height: 20),
@@ -95,12 +110,17 @@ class PrivacyScreen extends StatelessWidget {
                 label: 'Source code',
                 url: 'github.com/defendra/defendra',
                 onCopy: () => Clipboard.setData(
-                  const ClipboardData(text: 'https://github.com/defendra/defendra'),
+                  const ClipboardData(
+                    text: 'https://github.com/defendra/defendra',
+                  ),
                 ),
               ),
               _CardDivider(),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 14,
+                ),
                 child: Text(
                   'Distributed as a direct APK and via F-Droid. '
                   'No Play Store build. No Google Play Services dependency.',
@@ -115,52 +135,9 @@ class PrivacyScreen extends StatelessWidget {
   }
 }
 
-// ---------------------------------------------------------------------------
-// Shared sub-widgets
-// ---------------------------------------------------------------------------
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(text, style: DefendraType.monoSmall);
-  }
-}
-
-class _PrivacyCard extends StatelessWidget {
-  const _PrivacyCard({required this.children});
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: DefendraColors.card,
-        border: Border.all(color: DefendraColors.border, width: 0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
-    );
-  }
-}
-
-class _CardDivider extends StatelessWidget {
-  const _CardDivider();
-
-  @override
-  Widget build(BuildContext context) =>
-      Container(height: 0.5, color: DefendraColors.border);
-}
-
 class _Bullet extends StatelessWidget {
-  const _Bullet({required this.text});
   final String text;
+  const _Bullet({required this.text});
 
   @override
   Widget build(BuildContext context) {
@@ -181,56 +158,30 @@ class _Bullet extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          Expanded(
-            child: Text(text, style: DefendraType.monoSmall),
-          ),
+          Expanded(child: Text(text, style: DefendraType.monoSmall)),
         ],
       ),
     );
   }
 }
 
-class _StorageRow extends StatelessWidget {
-  const _StorageRow({required this.key_, required this.value});
-  final String key_;
-  final String value;
+class _CardDivider extends StatelessWidget {
+  const _CardDivider();
 
   @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 120,
-            child: Text(
-              key_,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: DefendraColors.text,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(value, style: DefendraType.monoSmall),
-          ),
-        ],
-      ),
-    );
-  }
+  Widget build(BuildContext context) =>
+      Container(height: 0.5, color: DefendraColors.border);
 }
 
 class _LinkRow extends StatelessWidget {
+  final String label;
+  final String url;
+  final VoidCallback onCopy;
   const _LinkRow({
     required this.label,
     required this.url,
     required this.onCopy,
   });
-  final String label;
-  final String url;
-  final VoidCallback onCopy;
 
   @override
   Widget build(BuildContext context) {
@@ -251,7 +202,9 @@ class _LinkRow extends StatelessWidget {
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(6),
                     side: const BorderSide(
-                        color: DefendraColors.border, width: 0.5),
+                      color: DefendraColors.border,
+                      width: 0.5,
+                    ),
                   ),
                   duration: const Duration(seconds: 2),
                 ),
@@ -268,6 +221,71 @@ class _LinkRow extends StatelessWidget {
               ),
             ),
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrivacyCard extends StatelessWidget {
+  final List<Widget> children;
+  const _PrivacyCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: DefendraColors.card,
+        border: Border.all(color: DefendraColors.border, width: 0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared sub-widgets
+// ---------------------------------------------------------------------------
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(text, style: DefendraType.monoSmall);
+  }
+}
+
+class _StorageRow extends StatelessWidget {
+  final String key_;
+  final String value;
+  const _StorageRow({required this.key_, required this.value});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              key_,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 11,
+                fontWeight: FontWeight.w500,
+                color: DefendraColors.text,
+              ),
+            ),
+          ),
+          Expanded(child: Text(value, style: DefendraType.monoSmall)),
         ],
       ),
     );

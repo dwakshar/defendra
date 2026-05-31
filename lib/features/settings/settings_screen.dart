@@ -46,11 +46,9 @@ class SettingsScreen extends ConsumerWidget {
 
           _SectionLabel('DATA'),
           const SizedBox(height: 8),
-          _SettingsCard(children: [
-            _ExportRow(),
-            _CardDivider(),
-            _FactoryResetRow(),
-          ]),
+          _SettingsCard(
+            children: [_ExportRow(), _CardDivider(), _FactoryResetRow()],
+          ),
           const SizedBox(height: 24),
 
           _SettingsCard(children: [_PrivacyLinkRow()]),
@@ -60,72 +58,176 @@ class SettingsScreen extends ConsumerWidget {
   }
 }
 
+class _CardDivider extends StatelessWidget {
+  const _CardDivider();
+
+  @override
+  Widget build(BuildContext context) =>
+      Container(height: 0.5, color: context.dBorder);
+}
+
 // ---------------------------------------------------------------------------
-// Sensitivity card — slider + live value
+// Export row
 // ---------------------------------------------------------------------------
 
-class _SensitivityCard extends ConsumerWidget {
+class _ExportRow extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return _TapRow(
+      label: 'Export JSON',
+      value: 'scan history → clipboard',
+      onTap: () => _export(context),
+    );
+  }
+
+  Future<void> _export(BuildContext context) async {
+    if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(VerdictAdapter());
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(ScanRecordAdapter());
+    }
+    final box = await Hive.openBox<ScanRecord>('scan_results');
+    final records = box.values.toList();
+
+    final json = jsonEncode(
+      records
+          .map(
+            (r) => {
+              'id': r.id,
+              'sender': r.sender,
+              'body': r.body,
+              'verdict': r.verdict.name,
+              'confidence': r.confidence,
+              'triggeredRules': r.triggeredRules,
+              'category': r.category,
+              'timestamp': r.timestamp.toIso8601String(),
+              'simSlot': r.simSlot,
+            },
+          )
+          .toList(),
+    );
+
+    await Clipboard.setData(ClipboardData(text: json));
+    if (context.mounted) {
+      _showSnack(context, '${records.length} records copied to clipboard');
+    }
+  }
+
+  void _showSnack(BuildContext context, String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg, style: context.dtMonoSmall),
+        backgroundColor: context.dCard,
+        behavior: SnackBarBehavior.floating,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(6),
+          side: BorderSide(color: context.dBorder, width: 0.5),
+        ),
+        duration: const Duration(seconds: 3),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Factory reset row
+// ---------------------------------------------------------------------------
+
+class _FactoryResetRow extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final threshold = ref.watch(sensitivityProvider);
-
-    return Container(
-      decoration: BoxDecoration(
-        color: context.dCard,
-        border: Border.all(color: context.dBorder, width: 0.5),
-        borderRadius: BorderRadius.circular(8),
+    return InkWell(
+      onTap: () => _confirm(context, ref),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Text(
+              'Factory reset',
+              style: context.dtBody.copyWith(color: DefendraColors.scam),
+            ),
+            const Spacer(),
+            Text('clear all data', style: context.dtMonoSmall),
+          ],
+        ),
       ),
-      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    );
+  }
+
+  Future<void> _confirm(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => Dialog(
+        backgroundColor: context.dCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: context.dBorder, width: 0.5),
+        ),
+        child: Padding(
+          padding: const EdgeInsets.all(20),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('Notification threshold', style: context.dtBody),
-              const Spacer(),
+              Text('Reset all data?', style: context.dtMono),
+              const SizedBox(height: 8),
               Text(
-                threshold.toStringAsFixed(2),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                  color: context.dText,
-                ),
+                'Permanently deletes all scan history and resets all '
+                'settings. This cannot be undone.',
+                style: context.dtMonoSmall,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
+                children: [
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, false),
+                    style: TextButton.styleFrom(
+                      foregroundColor: context.dMuted,
+                    ),
+                    child: Text('Cancel', style: context.dtMonoSmall),
+                  ),
+                  const SizedBox(width: 8),
+                  TextButton(
+                    onPressed: () => Navigator.pop(ctx, true),
+                    style: TextButton.styleFrom(
+                      foregroundColor: DefendraColors.scam,
+                    ),
+                    child: Text(
+                      'Reset',
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w500,
+                        color: DefendraColors.scam,
+                      ),
+                    ),
+                  ),
+                ],
               ),
             ],
           ),
-          const SizedBox(height: 4),
-          Text(
-            'Scam alerts fire above this confidence score',
-            style: context.dtMonoSmall,
-          ),
-          const SizedBox(height: 8),
-          SliderTheme(
-            data: SliderTheme.of(context).copyWith(
-              activeTrackColor: context.dText,
-              inactiveTrackColor: context.dBorder,
-              thumbColor: context.dText,
-              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
-              trackHeight: 1.0,
-              overlayShape: SliderComponentShape.noOverlay,
-            ),
-            child: Slider(
-              value: threshold,
-              min: 0.50,
-              max: 1.00,
-              divisions: 10,
-              onChanged: (v) =>
-                  ref.read(sensitivityProvider.notifier).set(v),
-            ),
-          ),
-          Row(
-            children: [
-              Text('0.50', style: context.dtMonoSmall),
-              const Spacer(),
-              Text('1.00', style: context.dtMonoSmall),
-            ],
-          ),
-        ],
+        ),
       ),
+    );
+
+    if (confirmed != true || !context.mounted) return;
+
+    if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(VerdictAdapter());
+    if (!Hive.isAdapterRegistered(1)) {
+      Hive.registerAdapter(ScanRecordAdapter());
+    }
+    final scanBox = await Hive.openBox<ScanRecord>('scan_results');
+    await scanBox.clear();
+    await Hive.box('settings').clear();
+
+    ref.invalidate(sensitivityProvider);
+    ref.invalidate(languageProvider);
+    ref.invalidate(whitelistProvider);
+    ref.invalidate(lightModeProvider);
+
+    if (!context.mounted) return;
+    Navigator.of(context).pushAndRemoveUntil(
+      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
+      (_) => false,
     );
   }
 }
@@ -184,7 +286,9 @@ class _LanguageRow extends ConsumerWidget {
                   },
                   child: Padding(
                     padding: const EdgeInsets.symmetric(
-                        horizontal: 16, vertical: 14),
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
                     child: Row(
                       children: [
                         Text(opt.$2, style: context.dtBody),
@@ -214,6 +318,184 @@ class _LanguageRow extends ConsumerWidget {
 }
 
 // ---------------------------------------------------------------------------
+// Light mode row
+// ---------------------------------------------------------------------------
+
+class _LightModeRow extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final enabled = ref.watch(lightModeProvider);
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      child: Row(
+        children: [
+          Text('Light mode', style: context.dtBody),
+          const Spacer(),
+          Text(enabled ? 'on' : 'off', style: context.dtMonoSmall),
+          const SizedBox(width: 12),
+          Switch(
+            value: enabled,
+            onChanged: (_) => ref.read(lightModeProvider.notifier).toggle(),
+            activeThumbColor: context.dText,
+            activeTrackColor: context.dMuted,
+            inactiveThumbColor: context.dMuted,
+            inactiveTrackColor: context.dBorder,
+            trackOutlineColor: WidgetStateProperty.all(Colors.transparent),
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Privacy link row
+// ---------------------------------------------------------------------------
+
+class _PrivacyLinkRow extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return _TapRow(
+      label: 'Privacy',
+      value: 'no data leaves your phone',
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => const PrivacyScreen())),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Shared layout primitives
+// ---------------------------------------------------------------------------
+
+class _SectionLabel extends StatelessWidget {
+  final String text;
+  const _SectionLabel(this.text);
+
+  @override
+  Widget build(BuildContext context) => Text(text, style: context.dtMonoSmall);
+}
+
+// ---------------------------------------------------------------------------
+// Sensitivity card — slider + live value
+// ---------------------------------------------------------------------------
+
+class _SensitivityCard extends ConsumerWidget {
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final threshold = ref.watch(sensitivityProvider);
+
+    return Container(
+      decoration: BoxDecoration(
+        color: context.dCard,
+        border: Border.all(color: context.dBorder, width: 0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      padding: const EdgeInsets.fromLTRB(16, 14, 16, 10),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Text('Notification threshold', style: context.dtBody),
+              const Spacer(),
+              Text(
+                threshold.toStringAsFixed(2),
+                style: GoogleFonts.jetBrainsMono(
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                  color: context.dText,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 4),
+          Text(
+            'Scam alerts fire above this confidence score',
+            style: context.dtMonoSmall,
+          ),
+          const SizedBox(height: 18),
+          SliderTheme(
+            data: SliderTheme.of(context).copyWith(
+              activeTrackColor: context.dText,
+              inactiveTrackColor: context.dBorder,
+              thumbColor: context.dText,
+              thumbShape: const RoundSliderThumbShape(enabledThumbRadius: 5),
+              trackHeight: 1.0,
+              overlayShape: SliderComponentShape.noOverlay,
+            ),
+            child: Slider(
+              value: threshold,
+              min: 0.50,
+              max: 1.00,
+              divisions: 10,
+              onChanged: (v) => ref.read(sensitivityProvider.notifier).set(v),
+            ),
+          ),
+          Row(
+            children: [
+              Text('0.50', style: context.dtMonoSmall),
+              const Spacer(),
+              Text('1.00', style: context.dtMonoSmall),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SettingsCard extends StatelessWidget {
+  final List<Widget> children;
+  const _SettingsCard({required this.children});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      decoration: BoxDecoration(
+        color: context.dCard,
+        border: Border.all(color: context.dBorder, width: 0.5),
+        borderRadius: BorderRadius.circular(8),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: children,
+      ),
+    );
+  }
+}
+
+class _TapRow extends StatelessWidget {
+  final String label;
+  final String? value;
+  final VoidCallback onTap;
+  const _TapRow({required this.label, this.value, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        child: Row(
+          children: [
+            Text(label, style: context.dtBody),
+            const Spacer(),
+            if (value != null) Text(value!, style: context.dtMonoSmall),
+            const SizedBox(width: 8),
+            Icon(Icons.chevron_right, size: 16, color: context.dMuted),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Whitelist card
 // ---------------------------------------------------------------------------
 
@@ -234,10 +516,7 @@ class _WhitelistCard extends ConsumerWidget {
           if (senders.isEmpty)
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-              child: Text(
-                'No senders whitelisted',
-                style: context.dtMonoSmall,
-              ),
+              child: Text('No senders whitelisted', style: context.dtMonoSmall),
             ),
           for (final sender in senders) ...[
             _WhitelistSenderRow(
@@ -254,8 +533,7 @@ class _WhitelistCard extends ConsumerWidget {
               bottom: const Radius.circular(8),
             ),
             child: Padding(
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
               child: Row(
                 children: [
                   Text('Add sender', style: context.dtBody),
@@ -300,16 +578,16 @@ class _WhitelistCard extends ConsumerWidget {
                   fillColor: context.dSurface,
                   isDense: true,
                   contentPadding: const EdgeInsets.symmetric(
-                      horizontal: 12, vertical: 10),
+                    horizontal: 12,
+                    vertical: 10,
+                  ),
                   enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(6),
-                    borderSide:
-                        BorderSide(color: context.dBorder, width: 0.5),
+                    borderSide: BorderSide(color: context.dBorder, width: 0.5),
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(6),
-                    borderSide:
-                        BorderSide(color: context.dMuted, width: 0.5),
+                    borderSide: BorderSide(color: context.dMuted, width: 0.5),
                   ),
                 ),
               ),
@@ -320,19 +598,17 @@ class _WhitelistCard extends ConsumerWidget {
                   TextButton(
                     onPressed: () => Navigator.pop(ctx),
                     style: TextButton.styleFrom(
-                        foregroundColor: context.dMuted),
+                      foregroundColor: context.dMuted,
+                    ),
                     child: Text('Cancel', style: context.dtMonoSmall),
                   ),
                   const SizedBox(width: 8),
                   TextButton(
                     onPressed: () {
-                      ref
-                          .read(whitelistProvider.notifier)
-                          .add(controller.text);
+                      ref.read(whitelistProvider.notifier).add(controller.text);
                       Navigator.pop(ctx);
                     },
-                    style: TextButton.styleFrom(
-                        foregroundColor: context.dText),
+                    style: TextButton.styleFrom(foregroundColor: context.dText),
                     child: Text(
                       'Add',
                       style: GoogleFonts.jetBrainsMono(
@@ -354,10 +630,9 @@ class _WhitelistCard extends ConsumerWidget {
 }
 
 class _WhitelistSenderRow extends StatelessWidget {
-  const _WhitelistSenderRow(
-      {required this.sender, required this.onRemove});
   final String sender;
   final VoidCallback onRemove;
+  const _WhitelistSenderRow({required this.sender, required this.onRemove});
 
   @override
   Widget build(BuildContext context) {
@@ -379,287 +654,6 @@ class _WhitelistSenderRow extends StatelessWidget {
             child: Icon(Icons.close, size: 14, color: context.dMuted),
           ),
         ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Light mode row
-// ---------------------------------------------------------------------------
-
-class _LightModeRow extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final enabled = ref.watch(lightModeProvider);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      child: Row(
-        children: [
-          Text('Light mode', style: context.dtBody),
-          const Spacer(),
-          Text(
-            enabled ? 'on' : 'off',
-            style: context.dtMonoSmall,
-          ),
-          const SizedBox(width: 12),
-          Switch(
-            value: enabled,
-            onChanged: (_) =>
-                ref.read(lightModeProvider.notifier).toggle(),
-            activeThumbColor: context.dText,
-            activeTrackColor: context.dMuted,
-            inactiveThumbColor: context.dMuted,
-            inactiveTrackColor: context.dBorder,
-            trackOutlineColor:
-                WidgetStateProperty.all(Colors.transparent),
-            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Export row
-// ---------------------------------------------------------------------------
-
-class _ExportRow extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return _TapRow(
-      label: 'Export JSON',
-      value: 'scan history → clipboard',
-      onTap: () => _export(context),
-    );
-  }
-
-  Future<void> _export(BuildContext context) async {
-    if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(VerdictAdapter());
-    if (!Hive.isAdapterRegistered(1)) { Hive.registerAdapter(ScanRecordAdapter()); }
-    final box = await Hive.openBox<ScanRecord>('scan_results');
-    final records = box.values.toList();
-
-    final json = jsonEncode(records
-        .map((r) => {
-              'id': r.id,
-              'sender': r.sender,
-              'body': r.body,
-              'verdict': r.verdict.name,
-              'confidence': r.confidence,
-              'triggeredRules': r.triggeredRules,
-              'category': r.category,
-              'timestamp': r.timestamp.toIso8601String(),
-              'simSlot': r.simSlot,
-            })
-        .toList());
-
-    await Clipboard.setData(ClipboardData(text: json));
-    if (context.mounted) {
-      _showSnack(context, '${records.length} records copied to clipboard');
-    }
-  }
-
-  void _showSnack(BuildContext context, String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: Text(msg, style: context.dtMonoSmall),
-        backgroundColor: context.dCard,
-        behavior: SnackBarBehavior.floating,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(6),
-          side: BorderSide(color: context.dBorder, width: 0.5),
-        ),
-        duration: const Duration(seconds: 3),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Factory reset row
-// ---------------------------------------------------------------------------
-
-class _FactoryResetRow extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    return InkWell(
-      onTap: () => _confirm(context, ref),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Text(
-              'Factory reset',
-              style:
-                  context.dtBody.copyWith(color: DefendraColors.scam),
-            ),
-            const Spacer(),
-            Text('clear all data', style: context.dtMonoSmall),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Future<void> _confirm(BuildContext context, WidgetRef ref) async {
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => Dialog(
-        backgroundColor: context.dCard,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(color: context.dBorder, width: 0.5),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(20),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('Reset all data?', style: context.dtMono),
-              const SizedBox(height: 8),
-              Text(
-                'Permanently deletes all scan history and resets all '
-                'settings. This cannot be undone.',
-                style: context.dtMonoSmall,
-              ),
-              const SizedBox(height: 20),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, false),
-                    style: TextButton.styleFrom(
-                        foregroundColor: context.dMuted),
-                    child: Text('Cancel', style: context.dtMonoSmall),
-                  ),
-                  const SizedBox(width: 8),
-                  TextButton(
-                    onPressed: () => Navigator.pop(ctx, true),
-                    style: TextButton.styleFrom(
-                        foregroundColor: DefendraColors.scam),
-                    child: Text(
-                      'Reset',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: DefendraColors.scam,
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-
-    if (confirmed != true || !context.mounted) return;
-
-    if (!Hive.isAdapterRegistered(0)) Hive.registerAdapter(VerdictAdapter());
-    if (!Hive.isAdapterRegistered(1)) { Hive.registerAdapter(ScanRecordAdapter()); }
-    final scanBox = await Hive.openBox<ScanRecord>('scan_results');
-    await scanBox.clear();
-    await Hive.box('settings').clear();
-
-    ref.invalidate(sensitivityProvider);
-    ref.invalidate(languageProvider);
-    ref.invalidate(whitelistProvider);
-    ref.invalidate(lightModeProvider);
-
-    if (!context.mounted) return;
-    Navigator.of(context).pushAndRemoveUntil(
-      MaterialPageRoute(builder: (_) => const OnboardingScreen()),
-      (_) => false,
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Privacy link row
-// ---------------------------------------------------------------------------
-
-class _PrivacyLinkRow extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return _TapRow(
-      label: 'Privacy',
-      value: 'no data leaves your phone',
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => const PrivacyScreen()),
-      ),
-    );
-  }
-}
-
-// ---------------------------------------------------------------------------
-// Shared layout primitives
-// ---------------------------------------------------------------------------
-
-class _SectionLabel extends StatelessWidget {
-  const _SectionLabel(this.text);
-  final String text;
-
-  @override
-  Widget build(BuildContext context) =>
-      Text(text, style: context.dtMonoSmall);
-}
-
-class _SettingsCard extends StatelessWidget {
-  const _SettingsCard({required this.children});
-  final List<Widget> children;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: double.infinity,
-      decoration: BoxDecoration(
-        color: context.dCard,
-        border: Border.all(color: context.dBorder, width: 0.5),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: children,
-      ),
-    );
-  }
-}
-
-class _CardDivider extends StatelessWidget {
-  const _CardDivider();
-
-  @override
-  Widget build(BuildContext context) =>
-      Container(height: 0.5, color: context.dBorder);
-}
-
-class _TapRow extends StatelessWidget {
-  const _TapRow(
-      {required this.label, this.value, required this.onTap});
-  final String label;
-  final String? value;
-  final VoidCallback onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
-        child: Row(
-          children: [
-            Text(label, style: context.dtBody),
-            const Spacer(),
-            if (value != null) Text(value!, style: context.dtMonoSmall),
-            const SizedBox(width: 8),
-            Icon(Icons.chevron_right, size: 16, color: context.dMuted),
-          ],
-        ),
       ),
     );
   }
