@@ -47,45 +47,7 @@ The shared flaw: every cloud-based approach requires the message to leave the de
 
 ## Architecture
 
-```
-┌──────────────────────────────────────────────────────────────┐
-│  Layer 1 — SMS Intercept                                     │
-│  Android BroadcastReceiver (RECEIVE_SMS permission)          │
-│  Captures raw sender + body; feeds into Dart isolate         │
-└───────────────────────────────┬──────────────────────────────┘
-                                │ raw text string
-┌───────────────────────────────▼──────────────────────────────┐
-│  Layer 2 — Tokenizer  (Dart, in-process, no FFI)            │
-│  Preprocessing: replace URLs, phones, amounts, OTPs, dates  │
-│  with typed placeholders (<url>, <phone>, <amount>, <otp>)  │
-│  Basic tokenize → WordPiece (mirrors HuggingFace exactly)   │
-│  Output: [CLS] + up to 94 subword tokens + [SEP], pad to 96 │
-└───────────────────────────────┬──────────────────────────────┘
-                                │ int64[1×96] input_ids + mask
-┌───────────────────────────────▼──────────────────────────────┐
-│  Layer 3 — TFLite Inference  (persistent Dart Isolate)      │
-│  distilbert-base-multilingual-cased, fine-tuned 4-class     │
-│  Model bytes transferred once (zero-copy TransferableTypedData)│
-│  Pre-allocated tensor buffers reused per call (no GC spike) │
-│  Returns logits[4]: safe · otp_kyc · delivery · dig_arrest  │
-└──────────────────┬────────────────────────────┬──────────────┘
-                   │ logits                     │ (parallel)
-┌──────────────────▼──────────────┐  ┌──────────▼──────────────┐
-│  Layer 4a — Softmax + Gate      │  │  Layer 4b — Rule Matcher│
-│  p_scam_total = Σ probs[1..3]  │  │  11 regex signal keys   │
-│  Threshold: 0.85 → scam         │  │  (sync, no I/O)         │
-│             0.50 → suspicious   │  │  digital_arrest, lottery│
-│  No signals → cap at safe       │  │  job_scam, delivery_fee │
-└──────────────────┬──────────────┘  └──────────┬──────────────┘
-                   │ prob vector                 │ fired signal keys
-┌──────────────────▼─────────────────────────────▼──────────────┐
-│  Layer 5 — Verdict Gate                                       │
-│  ML corroborated by ≥1 rule signal → verdict (scam/suspicious)│
-│  High-signal key alone (pSafe < 0.75) → suspicious override  │
-│  Output: ScanResult {label, verdict, confidence, category,   │
-│          triggerPhrases, firedSignalKeys, ruleOverride}      │
-└───────────────────────────────────────────────────────────────┘
-```
+<img src="docs/architecture.svg" alt="Defendra 5-layer detection architecture" width="720"/>
 
 **The no-network-layer guarantee is structural, not policy.**
 There is no HTTP client, no DNS resolver, no analytics SDK, no crash reporter in the binary. The privacy commitment cannot be silently removed by a config flag or server-side change — it requires rewriting the app.

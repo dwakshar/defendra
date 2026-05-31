@@ -1,0 +1,93 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 612" width="720" height="612">
+  <defs>
+    <marker id="arr" markerWidth="8" markerHeight="6" refX="8" refY="3" orient="auto">
+      <polygon points="0 0,8 3,0 6" fill="#58a6ff"/>
+    </marker>
+  </defs>
+
+  <!-- Background -->
+  <rect width="720" height="612" rx="12" fill="#0d1117"/>
+
+  <!-- ═══ LAYER 1 — SMS INTERCEPT ═══ -->
+  <rect x="20" y="20" width="680" height="68" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <rect x="20" y="20" width="4"   height="68" rx="3" fill="#1f6feb"/>
+  <rect x="32" y="31" width="60"  height="18" rx="9" fill="#1f6feb"/>
+  <text x="62"  y="44" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="10.5" font-weight="700" fill="#ffffff">Layer 1</text>
+  <text x="102" y="44" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#e6edf3">SMS Intercept</text>
+  <text x="32"  y="63" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">Android BroadcastReceiver (RECEIVE_SMS) — captures raw sender + body, triggers classification pipeline</text>
+
+  <!-- Arrow 1 → 2 -->
+  <line x1="360" y1="88" x2="360" y2="116" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="368" y="106" font-family="system-ui,-apple-system,sans-serif" font-size="10" fill="#484f58">raw text</text>
+
+  <!-- ═══ LAYER 2 — TOKENIZER ═══ -->
+  <rect x="20" y="120" width="680" height="76" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <rect x="20" y="120" width="4"   height="76" rx="3" fill="#238636"/>
+  <rect x="32" y="131" width="60"  height="18" rx="9" fill="#238636"/>
+  <text x="62"  y="144" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="10.5" font-weight="700" fill="#ffffff">Layer 2</text>
+  <text x="102" y="144" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#e6edf3">Tokenizer</text>
+  <text x="178" y="144" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">(Dart, in-process, no FFI)</text>
+  <text x="32"  y="162" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">Preprocess: URLs · phones · amounts · OTPs replaced with typed placeholders (&lt;url&gt; &lt;phone&gt; &lt;amount&gt; &lt;otp&gt;)</text>
+  <text x="32"  y="178" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">WordPiece tokenize → [CLS] + ≤94 subword tokens + [SEP] → pad/truncate to seqlen 96 → int64[1×96]</text>
+
+  <!-- Arrow 2 → 3 -->
+  <line x1="360" y1="196" x2="360" y2="220" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="368" y="212" font-family="system-ui,-apple-system,sans-serif" font-size="10" fill="#484f58">int64[1×96] input_ids + mask</text>
+
+  <!-- ═══ LAYER 3 — TFLITE INFERENCE ═══ -->
+  <rect x="20" y="224" width="680" height="84" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <rect x="20" y="224" width="4"   height="84" rx="3" fill="#8957e5"/>
+  <rect x="32" y="235" width="60"  height="18" rx="9" fill="#8957e5"/>
+  <text x="62"  y="248" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="10.5" font-weight="700" fill="#ffffff">Layer 3</text>
+  <text x="102" y="248" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#e6edf3">TFLite Inference</text>
+  <text x="222" y="248" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">(persistent Dart Isolate)</text>
+  <text x="32"  y="266" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">distilbert-base-multilingual-cased · 134M params · 6 transformer layers · dynamic INT8 quantized</text>
+  <text x="32"  y="282" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">Model bytes transferred once (zero-copy TransferableTypedData) · pre-allocated tensor buffers reused per call</text>
+  <text x="32"  y="298" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">Returns logits[4]:  safe · otp_kyc · delivery_courier · digital_arrest</text>
+
+  <!-- Fork: down from L3 centre, split left/right, arrows to L4a and L4b -->
+  <line x1="360" y1="308" x2="360" y2="332" stroke="#58a6ff" stroke-width="1.5"/>
+  <line x1="180" y1="332" x2="540" y2="332" stroke="#58a6ff" stroke-width="1.5"/>
+  <line x1="180" y1="332" x2="180" y2="356" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
+  <line x1="540" y1="332" x2="540" y2="356" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="116" y="324" font-family="system-ui,-apple-system,sans-serif" font-size="10" fill="#484f58">logits</text>
+  <text x="554" y="324" font-family="system-ui,-apple-system,sans-serif" font-size="10" fill="#484f58">parallel</text>
+
+  <!-- ═══ LAYER 4a — SOFTMAX + GATE ═══ -->
+  <rect x="20"  y="360" width="320" height="88" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <rect x="20"  y="360" width="4"   height="88" rx="3" fill="#d4a72c"/>
+  <rect x="32"  y="371" width="64"  height="18" rx="9" fill="#d4a72c"/>
+  <text x="64"  y="384" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="10.5" font-weight="700" fill="#1a1a1a">Layer 4a</text>
+  <text x="106" y="384" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#e6edf3">Softmax + Gate</text>
+  <text x="32"  y="402" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">p_scam = Σ probs[1..3]</text>
+  <text x="32"  y="418" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">&gt;0.85 + signals → scam</text>
+  <text x="32"  y="434" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">&gt;0.50 + signals → suspicious · no signals → safe</text>
+
+  <!-- ═══ LAYER 4b — RULE MATCHER ═══ -->
+  <rect x="380" y="360" width="320" height="88" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <rect x="380" y="360" width="4"   height="88" rx="3" fill="#d4a72c"/>
+  <rect x="392" y="371" width="64"  height="18" rx="9" fill="#d4a72c"/>
+  <text x="424" y="384" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="10.5" font-weight="700" fill="#1a1a1a">Layer 4b</text>
+  <text x="466" y="384" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#e6edf3">Rule Matcher</text>
+  <text x="392" y="402" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">11 synchronous regex signal patterns</text>
+  <text x="392" y="418" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">digital_arrest · lottery · job_scam</text>
+  <text x="392" y="434" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">delivery_fee · otp_request · urgency · …</text>
+
+  <!-- Merge: down from L4a and L4b, join horizontally, arrow to L5 -->
+  <line x1="180" y1="448" x2="180" y2="472" stroke="#58a6ff" stroke-width="1.5"/>
+  <line x1="540" y1="448" x2="540" y2="472" stroke="#58a6ff" stroke-width="1.5"/>
+  <line x1="180" y1="472" x2="540" y2="472" stroke="#58a6ff" stroke-width="1.5"/>
+  <line x1="360" y1="472" x2="360" y2="496" stroke="#58a6ff" stroke-width="1.5" marker-end="url(#arr)"/>
+  <text x="68"  y="464" font-family="system-ui,-apple-system,sans-serif" font-size="10" fill="#484f58">prob vector</text>
+  <text x="548" y="464" font-family="system-ui,-apple-system,sans-serif" font-size="10" fill="#484f58">fired keys</text>
+
+  <!-- ═══ LAYER 5 — VERDICT GATE ═══ -->
+  <rect x="20" y="500" width="680" height="88" rx="6" fill="#161b22" stroke="#30363d" stroke-width="1"/>
+  <rect x="20" y="500" width="4"   height="88" rx="3" fill="#da3633"/>
+  <rect x="32" y="511" width="60"  height="18" rx="9" fill="#da3633"/>
+  <text x="62"  y="524" text-anchor="middle" font-family="system-ui,-apple-system,sans-serif" font-size="10.5" font-weight="700" fill="#ffffff">Layer 5</text>
+  <text x="102" y="524" font-family="system-ui,-apple-system,sans-serif" font-size="13" font-weight="600" fill="#e6edf3">Verdict Gate</text>
+  <text x="32"  y="542" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">ML corroborated by ≥1 rule signal → verdict (scam / suspicious / safe)</text>
+  <text x="32"  y="558" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#8b949e">High-signal key alone + pSafe &lt; 0.75 → suspicious override  (ruleOverride = true)</text>
+  <text x="32"  y="574" font-family="system-ui,-apple-system,sans-serif" font-size="11" fill="#e6edf3">→  ScanResult { label · verdict · confidence · category · triggerPhrases · firedSignalKeys }</text>
+</svg>
