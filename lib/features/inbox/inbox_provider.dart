@@ -90,6 +90,12 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
       return;
     }
 
+    final blocklist = _ref.read(blocklistProvider);
+    if (blocklist.any((b) => sms.sender.toLowerCase() == b.toLowerCase())) {
+      debugPrint('[D3-BL] ${sms.sender} blocked, skipping');
+      return;
+    }
+
     await _engineReady.future;
 
     ScanResult result;

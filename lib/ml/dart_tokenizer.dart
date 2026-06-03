@@ -161,16 +161,20 @@ class DartTokenizer {
     _clsToken = _resolveSpecial(['[CLS]', '<s>'], fallback: 101);
     _sepToken = _resolveSpecial(['[SEP]', '</s>'], fallback: 102);
 
-    _urlToken = _vocab.containsKey(_urlPlaceholder) ? _urlPlaceholder : null;
-    _phoneToken = _vocab.containsKey(_phonePlaceholder)
-        ? _phonePlaceholder
-        : null;
-    _amountToken = _vocab.containsKey(_amountPlaceholder)
-        ? _amountPlaceholder
-        : null;
-    _otpToken = _vocab.containsKey(_otpPlaceholder) ? _otpPlaceholder : null;
+    // Always enable placeholder substitution — do NOT gate on vocab containsKey.
+    // The pruned vocab lacks <url>/<phone>/<amount>/<otp> as top-level entries,
+    // but their constituent WordPiece pieces ARE present (< ##ur ##l ##> etc.).
+    // The greedy algorithm produces the correct multi-token IDs when the whole
+    // placeholder string is preserved by _basicTokenize and NOT split on < / >.
+    // Gating on vocab presence silently disables substitution and sends raw
+    // URL/phone/amount text to the model, which saw only placeholder tokens
+    // during fine-tuning (training data was fully normalized with build_dataset.py).
+    _urlToken    = _urlPlaceholder;
+    _phoneToken  = _phonePlaceholder;
+    _amountToken = _amountPlaceholder;
+    _otpToken    = _otpPlaceholder;
 
-    _preservedTokens = [?_urlToken, ?_phoneToken, ?_amountToken, ?_otpToken]
+    _preservedTokens = [_urlToken!, _phoneToken!, _amountToken!, _otpToken!]
       ..sort((a, b) => b.length.compareTo(a.length));
   }
 
@@ -287,7 +291,10 @@ class DartTokenizer {
       _amountToken,
     );
     out = _replaceIfSupported(out, RegExp(r'\b\d{4,8}\b'), _otpToken);
-    return out;
+    // Lowercase to match training data: build_dataset.py's normalize() lowercased
+    // every row before fine-tuning. The model's fine-tuned embeddings are almost
+    // entirely lowercase; mixed-case inference degrades accuracy measurably.
+    return out.toLowerCase();
   }
 
   String _replaceIfSupported(String text, RegExp regex, String? token) {

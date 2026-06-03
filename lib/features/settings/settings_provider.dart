@@ -80,6 +80,41 @@ final whitelistProvider =
 );
 
 // ---------------------------------------------------------------------------
+// Blocklist — sender IDs that are silently dropped on arrival
+// ---------------------------------------------------------------------------
+
+class BlocklistNotifier extends StateNotifier<List<String>> {
+  BlocklistNotifier()
+      : super(
+          (Hive.box(_kBox)
+                  .get('blocklist_senders', defaultValue: <String>[]) as List)
+              .cast<String>(),
+        );
+
+  void add(String sender) {
+    final s = sender.trim();
+    if (s.isEmpty || state.contains(s)) return;
+    state = [...state, s];
+    _persist();
+  }
+
+  void remove(String sender) {
+    state = state.where((s) => s != sender).toList();
+    _persist();
+  }
+
+  bool contains(String sender) =>
+      state.any((s) => s.toLowerCase() == sender.toLowerCase());
+
+  void _persist() => Hive.box(_kBox).put('blocklist_senders', state);
+}
+
+final blocklistProvider =
+    StateNotifierProvider<BlocklistNotifier, List<String>>(
+  (ref) => BlocklistNotifier(),
+);
+
+// ---------------------------------------------------------------------------
 // Light mode — persisted, visual wiring happens in polish step
 // ---------------------------------------------------------------------------
 

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:url_launcher/url_launcher.dart';
@@ -9,6 +10,7 @@ import '../../core/theme/typography.dart';
 import '../../data/models/scan_record.dart';
 import '../../ml/explanation.dart';
 import '../../ml/rule_matcher.dart';
+import '../settings/settings_provider.dart';
 
 class DetailScreen extends StatefulWidget {
   const DetailScreen({super.key, required this.record});
@@ -295,12 +297,16 @@ class _ReasonPanel extends StatelessWidget {
 // Actions row
 // ---------------------------------------------------------------------------
 
-class _ActionsRow extends StatelessWidget {
+class _ActionsRow extends ConsumerWidget {
   const _ActionsRow({required this.record});
   final ScanRecord record;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isBlocked = ref
+        .watch(blocklistProvider)
+        .any((b) => b.toLowerCase() == record.sender.toLowerCase());
+
     return Row(
       children: [
         Expanded(
@@ -312,8 +318,9 @@ class _ActionsRow extends StatelessWidget {
         const SizedBox(width: 8),
         Expanded(
           child: _ActionButton(
-            label: 'Block sender',
-            onTap: () => _blockSender(context),
+            label: isBlocked ? 'Blocked' : 'Block sender',
+            danger: !isBlocked,
+            onTap: isBlocked ? null : () => _confirmBlock(context, ref),
           ),
         ),
         const SizedBox(width: 8),
@@ -346,7 +353,7 @@ class _ActionsRow extends StatelessWidget {
   }
 
   Future<void> _call1930(BuildContext context) async {
-    final uri = Uri.parse('tel:1930');
+    final uri = Uri.parse('tel:+911930');
     if (await canLaunchUrl(uri)) {
       await launchUrl(uri);
     } else if (context.mounted) {
@@ -354,17 +361,49 @@ class _ActionsRow extends StatelessWidget {
     }
   }
 
-  Future<void> _blockSender(BuildContext context) async {
-    // Android has no standard URI to directly block; open dialer with number
-    // so user can tap ⋮ → Block in the phone app.
-    final uri = Uri.parse('tel:${Uri.encodeComponent(record.sender)}');
-    if (await canLaunchUrl(uri)) {
-      await launchUrl(uri);
-      if (context.mounted) {
-        _showSnack(context, 'Tap ⋮ → Block in your phone app');
-      }
-    } else if (context.mounted) {
-      _showSnack(context, 'Could not open dialer');
+  Future<void> _confirmBlock(BuildContext context, WidgetRef ref) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        backgroundColor: context.dCard,
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(8),
+          side: BorderSide(color: context.dBorder, width: 0.5),
+        ),
+        title: Text(
+          'Block sender?',
+          style: context.dtMono.copyWith(color: context.dText),
+        ),
+        content: Text(
+          'Future messages from ${record.sender} will be silently ignored by Defendra. '
+          'This does not affect your phone app or contacts.',
+          style: context.dtMono.copyWith(
+            color: context.dMuted,
+            fontSize: 13,
+            height: 1.5,
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: Text(
+              'Cancel',
+              style: context.dtMonoSmall.copyWith(color: context.dMuted),
+            ),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: Text(
+              'Block',
+              style: context.dtMonoSmall.copyWith(color: DefendraColors.scam),
+            ),
+          ),
+        ],
+      ),
+    );
+    if (confirmed == true && context.mounted) {
+      ref.read(blocklistProvider.notifier).add(record.sender);
+      _showSnack(context, '${record.sender} blocked');
     }
   }
 
@@ -379,19 +418,30 @@ class _ActionsRow extends StatelessWidget {
 }
 
 class _ActionButton extends StatelessWidget {
-  const _ActionButton({required this.label, required this.onTap});
+  const _ActionButton({
+    required this.label,
+    required this.onTap,
+    this.danger = false,
+  });
   final String label;
-  final VoidCallback onTap;
+  final VoidCallback? onTap;
+  final bool danger;
 
   @override
   Widget build(BuildContext context) {
+    final disabled = onTap == null;
     return GestureDetector(
       onTap: onTap,
       child: Container(
         padding: const EdgeInsets.symmetric(vertical: 10),
         decoration: BoxDecoration(
           color: Colors.transparent,
-          border: Border.all(color: context.dBorder, width: 0.5),
+          border: Border.all(
+            color: danger && !disabled
+                ? DefendraColors.scam.withValues(alpha: 0.4)
+                : context.dBorder,
+            width: 0.5,
+          ),
           borderRadius: BorderRadius.circular(6),
         ),
         alignment: Alignment.center,
@@ -400,7 +450,11 @@ class _ActionButton extends StatelessWidget {
           style: GoogleFonts.jetBrainsMono(
             fontSize: 10,
             fontWeight: FontWeight.w400,
-            color: context.dMuted,
+            color: disabled
+                ? context.dBorder
+                : danger
+                    ? DefendraColors.scam
+                    : context.dMuted,
           ),
           overflow: TextOverflow.ellipsis,
         ),

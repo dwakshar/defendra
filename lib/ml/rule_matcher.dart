@@ -104,6 +104,20 @@ class RuleMatcher {
           r'|parcel.{0,20}(?:held|seized|detained)|delivery.{0,10}fee',
       reason: 'Fake customs / delivery fee',
     ),
+    (
+      key: 'advance_fee_recruitment',
+      // Advance-fee job scam: requires BOTH a selection/job context AND a
+      // security/registration deposit — either order, within 80 chars.
+      // TCS/Infosys/Amazon impersonation variants that slipped through as SAFE
+      // because they only fire shortened_url + amount_mentioned, neither high-signal.
+      // Deliberately does NOT match "security deposit for apartment" (no job context).
+      pattern:
+          r'(?:selected|shortlisted|chosen|candidate).{0,80}(?:security|registration|joining|training)\s*(?:deposit|fee|amount|charge|money)'
+          r'|(?:security|registration|joining|training)\s*(?:deposit|fee|amount|charge|money).{0,80}(?:selected|shortlisted|interview|offer|candidate)'
+          r'|(?:interview|offer\s*letter).{0,60}(?:security|registration|joining)\s*(?:deposit|fee|amount)'
+          r'|pay.{0,30}(?:security|registration|joining).{0,20}(?:deposit|fee).{0,30}(?:selected|offer|job|position)',
+      reason: 'Advance-fee recruitment scam (security/registration deposit)',
+    ),
   ];
 
   // ---------------------------------------------------------------------------
@@ -144,6 +158,7 @@ class RuleMatcher {
     'lottery': 'a prize or lottery claim',
     'job_scam': 'a suspicious job offer',
     'delivery_fee': 'a fake delivery fee',
+    'advance_fee_recruitment': 'an advance-fee recruitment scam',
     'urgency': 'urgency language',
   };
 

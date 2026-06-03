@@ -27,16 +27,14 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
   ScannerNotifier.preset(ScannerState s) : super(s);
 
   Future<void> _init() async {
-    state = const ScannerState(isLoading: true);
+    // Load silently — classify() has a built-in rule-based fallback so the
+    // scan button stays enabled immediately and during model loading.
     await _engine.load();
     if (_engine.loadError != null) {
       state = ScannerState(error: 'Model failed to load: ${_engine.loadError}');
-    } else {
-      state = const ScannerState();
-      if (kDebugMode) {
-        final r = await _engine.benchmark(runs: 10);
-        debugPrint('[BENCHMARK]\n$r');
-      }
+    } else if (kDebugMode) {
+      final r = await _engine.benchmark(runs: 10);
+      debugPrint('[BENCHMARK]\n$r');
     }
   }
 

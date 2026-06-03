@@ -67,5 +67,5 @@ flutter:
 
   assets:
     - assets/ml/model_pruned_int8.tflite
-    - assets/ml/vocab.json
+    - assets/ml/vocab_pruned.json
     - assets/images/
