@@ -1,6 +1,9 @@
-import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import '../../data/models/scan_record.dart';
 import '../../ml/ml_engine.dart';
+import '../../ml/ml_engine_provider.dart';
+import '../../ml/rule_matcher.dart';
 
 class ScannerState {
   final bool isLoading;
@@ -17,33 +20,19 @@ class ScannerState {
 }
 
 class ScannerNotifier extends StateNotifier<ScannerState> {
-  final MlEngine _engine = MlEngine();
+  ScannerNotifier(this._ref) : super(const ScannerState());
 
-  ScannerNotifier() : super(const ScannerState()) {
-    _init();
-  }
+  final Ref _ref;
 
-  @visibleForTesting
-  ScannerNotifier.preset(ScannerState s) : super(s);
-
-  Future<void> _init() async {
-    // Load silently — classify() has a built-in rule-based fallback so the
-    // scan button stays enabled immediately and during model loading.
-    await _engine.load();
-    if (_engine.loadError != null) {
-      state = ScannerState(error: 'Model failed to load: ${_engine.loadError}');
-    } else if (kDebugMode) {
-      final r = await _engine.benchmark(runs: 10);
-      debugPrint('[BENCHMARK]\n$r');
-    }
-  }
+  // preset constructor kept for tests that inject pre-built state.
+  ScannerNotifier.preset(ScannerState s, Ref ref)
+      : _ref = ref,
+        super(s);
 
   Future<void> scan(String text) async {
     state = const ScannerState(isLoading: true);
     try {
-      // classify() has a built-in rule-based fallback when the model is not
-      // ready, so scans work even if the TFLite model failed to load.
-      final result = await _engine.classify(text);
+      final result = await _classify(text);
       state = ScannerState(result: result);
     } catch (e) {
       state = ScannerState(error: e.toString());
@@ -54,14 +43,25 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
     state = ScannerState(result: state.result, isSaved: true);
   }
 
-  @override
-  void dispose() {
-    _engine.dispose();
-    super.dispose();
+  Future<ClassificationResult> _classify(String text) async {
+    try {
+      final engine = await _ref.read(mlEngineProvider.future);
+      return engine.classify(text);
+    } catch (_) {
+      // Engine dead or still loading — rule-only so scan always produces output.
+      final (:reasons, :keys) = RuleMatcher.matchAll(text);
+      return ClassificationResult(
+        verdict: keys.isNotEmpty ? Verdict.suspicious : Verdict.safe,
+        pScam: double.nan,
+        probs: const [],
+        source: VerdictSource.ruleFallback,
+        triggers: keys,
+        triggerReasons: reasons,
+      );
+    }
   }
 }
 
-final scannerProvider =
-    StateNotifierProvider<ScannerNotifier, ScannerState>(
-  (ref) => ScannerNotifier(),
+final scannerProvider = StateNotifierProvider<ScannerNotifier, ScannerState>(
+  (ref) => ScannerNotifier(ref),
 );

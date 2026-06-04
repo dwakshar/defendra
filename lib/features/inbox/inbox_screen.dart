@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:google_fonts/google_fonts.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import '../../core/theme/colors.dart';
@@ -8,6 +9,7 @@ import '../../core/theme/typography.dart';
 import '../../core/theme/widgets/empty_state.dart';
 import '../../core/theme/widgets/shimmer.dart';
 import '../../data/models/scan_record.dart';
+import '../../ml/ml_engine_provider.dart';
 import '../detail/detail_screen.dart';
 import 'inbox_provider.dart';
 
@@ -80,6 +82,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
       body: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          if (ref.watch(mlOfflineProvider)) const _MlOfflineBanner(),
           if (_permissionDenied) _PermissionBanner(onGrant: _requestPermission),
 
           _FilterTabRow(
@@ -327,6 +330,31 @@ class _Tab extends StatelessWidget {
             color: active ? context.dText : context.dMuted,
             fontWeight: active ? FontWeight.w500 : FontWeight.w400,
           ),
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// ML offline banner — shown when the engine provider errored or is loading.
+// ---------------------------------------------------------------------------
+
+class _MlOfflineBanner extends StatelessWidget {
+  const _MlOfflineBanner();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: DefendraColors.scam,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Text(
+        'ML engine offline — verdicts are rule-only',
+        style: GoogleFonts.inter(
+          fontSize: 12,
+          fontWeight: FontWeight.w500,
+          color: Colors.white,
         ),
       ),
     );

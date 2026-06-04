@@ -9,6 +9,8 @@ import '../../core/platform/sms_channel.dart';
 import '../../core/notifications/notification_service.dart';
 import '../../data/models/scan_record.dart';
 import '../../ml/ml_engine.dart';
+import '../../ml/ml_engine_provider.dart';
+import '../../ml/rule_matcher.dart';
 import '../settings/settings_provider.dart';
 
 // ---------------------------------------------------------------------------
@@ -36,9 +38,6 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
         super(records);
 
   final Ref _ref;
-  final MlEngine _engine = MlEngine();
-
-  final _engineReady = Completer<void>();
 
   Future<void> _init() async {
     // Register the SMS listener FIRST — before any async I/O — so the Dart
@@ -57,27 +56,35 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
       Hive.registerAdapter(ScanRecordAdapter());
     }
 
-    try {
-      final box = await Hive.openBox<ScanRecord>('scan_results');
-      if (mounted) {
-        state = box.values.toList()
-          ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-      }
-      await _engine.load();
-    } finally {
-      // Always complete so _onSms is never permanently stuck on this future,
-      // even when Hive or the model loader throws unexpectedly.
-      if (!_engineReady.isCompleted) _engineReady.complete();
+    final box = await Hive.openBox<ScanRecord>('scan_results');
+    if (mounted) {
+      state = box.values.toList()
+        ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
     }
 
-    if (_engine.isReady) {
-      debugPrint('[D0] engine ready, SMS listener active');
-      if (kDebugMode) {
-        final r = await _engine.benchmark(runs: 10);
-        debugPrint('[BENCHMARK]\n$r');
-      }
-    } else {
-      debugPrint('[D0] engine FAILED to load: ${_engine.loadError}');
+    // mlEngineProvider loads in the background — we don't block _init() here.
+    // _classify() awaits the provider future on first SMS, which is the natural
+    // gate: the engine must be ready before we can classify an SMS.
+    debugPrint('[D0] InboxNotifier ready, SMS listener active');
+  }
+
+  // Classify [text] via the shared engine provider, falling back to rules-only
+  // if the provider errored or hasn't resolved yet.
+  Future<ClassificationResult> _classify(String text) async {
+    try {
+      final engine = await _ref.read(mlEngineProvider.future);
+      return engine.classify(text);
+    } catch (e) {
+      debugPrint('[D3] engine unavailable — rule-only fallback ($e)');
+      final (:reasons, :keys) = RuleMatcher.matchAll(text);
+      return ClassificationResult(
+        verdict: keys.isNotEmpty ? Verdict.suspicious : Verdict.safe,
+        pScam: double.nan,
+        probs: const [],
+        source: VerdictSource.ruleFallback,
+        triggers: keys,
+        triggerReasons: reasons,
+      );
     }
   }
 
@@ -96,34 +103,23 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
       return;
     }
 
-    await _engineReady.future;
-
-    ScanResult result;
-    try {
-      result = await _engine.classify(sms.body);
-    } catch (e, st) {
-      debugPrint('[D3-ERR] classify failed: $e');
-      debugPrintStack(label: '[D3-ERR]', stackTrace: st);
-      result = const ScanResult(
-        label: ScamLabel.safe,
-        confidence: 0.0,
-        triggerPhrases: [],
-        ruleOverride: true,
-      );
-    }
+    final result = await _classify(sms.body);
 
     final record = ScanRecord(
       id: ScanRecord.generateId(),
       sender: sms.sender,
       body: sms.body,
-      verdict: _toVerdict(result),
+      verdict: result.verdict,
       confidence: result.confidence,
       triggeredRules: result.triggerPhrases,
       category: result.category,
       timestamp: sms.timestamp,
       simSlot: sms.simSlot,
     );
-    debugPrint('[D4] verdict: ${record.verdict} conf: ${record.confidence}');
+    debugPrint(
+      '[D4] verdict=${record.verdict}  conf=${record.confidence}  '
+      'source=${result.source}',
+    );
 
     // openBox returns the already-open box if available, or opens it if Hive
     // init succeeded but the box was closed (e.g., after a Hive error in _init).
@@ -153,14 +149,6 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
     await box.clear();
     if (mounted) state = [];
   }
-
-  @override
-  void dispose() {
-    _engine.dispose();
-    super.dispose();
-  }
-
-  Verdict _toVerdict(ScanResult result) => result.verdict;
 }
 
 // ---------------------------------------------------------------------------
