@@ -66,7 +66,5 @@ flutter:
   uses-material-design: true
 
   assets:
-    - assets/ml/model_pruned_int8.tflite
     - assets/ml/defendra_int8.tflite
-    - assets/ml/vocab_pruned.json
     - assets/images/

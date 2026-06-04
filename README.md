@@ -1,181 +1,134 @@
 # Defendra
 
+On-device SMS scam classifier for Android. Fine-tuned multilingual BERT, fully offline, zero data egress.
+
 > Built like a terminal. Trusted like a vault.
-
-On-device AI scam detector for Indian SMS. Classifies every incoming message locally — no server, no account, no data egress. Fine-tuned multilingual BERT runs entirely inside the app.
-
----
-
-## Table of Contents
-
-1. [Demo](#demo)
-2. [The Problem](#the-problem)
-3. [Architecture](#architecture)
-4. [ML Model](#ml-model)
-5. [Dataset](#dataset)
-6. [Build & Run](#build--run)
-7. [Privacy](#privacy)
-8. [Honest Limitations](#honest-limitations)
-9. [Roadmap](#roadmap)
-
----
-
-## Demo
-
-> **GIF placeholder** — record a 30-second clip: receive a scam SMS → notification fires → inbox shows verdict + explanation → tap to see signal breakdown.
-
-> **Screenshot placeholder** — inbox view (safe / suspicious / scam rows), detail screen showing triggered rule phrases, settings/privacy screen.
 
 ---
 
 ## The Problem
 
-India is the most-targeted country for SMS-based financial fraud. The dominant attack patterns are well-documented by TRAI and CERT-In: OTP/KYC harvesting where attackers impersonate banks or government services; "digital arrest" scams where victims receive messages claiming CBI/ED investigation; delivery-fee fraud tied to courier tracking; and lottery/job scams piggybacking on UPI growth.
+India is among the most-targeted countries for SMS-based financial fraud (TRAI/CERT-In, FY2024). The dominant countermeasures — DLT sender blocklists, Truecaller caller-ID, bank-side OTP guards — inspect the sender, not the message body. Attackers route around them using personal SIMs or freshly registered commercial headers. Cloud-based content filters address the gap but send message text offdevice; on a phone linked to Aadhaar, UPI, and a bank account, that is a non-trivial privacy cost.
 
-**Why existing tools don't close the gap:**
+---
 
-| Tool                        | What it does                         | Why it falls short                                                                  |
-| --------------------------- | ------------------------------------ | ----------------------------------------------------------------------------------- |
-| Truecaller                  | Caller ID lookup via crowd database  | Cloud-dependent; covers calls better than SMS; shares your contact graph            |
-| Bank apps                   | Intercept OTPs for their own flows   | Blind to third-party impersonation; only active while app is open                   |
-| TRAI/DLT blocklist          | Blocks registered commercial senders | Attackers use personal SIMs or register on the platform; blocklist lags by weeks    |
-| Google Messages spam filter | Heuristic + cloud ML                 | Sends message metadata to Google; English-optimised; misses Hindi/Hinglish patterns |
+## What Makes It Different
 
-The shared flaw: every cloud-based approach requires the message to leave the device. For a country where the same phone number is linked to a bank account, Aadhaar, and UPI, that is a meaningful privacy tradeoff. Defendra's architecture makes the tradeoff impossible by construction: there is no HTTP client in the binary.
+**Content analysis.** Every byte of the SMS body is tokenized and scored — not matched against a sender database or blocklist.  
+**No network layer, by architecture.** The binary contains no HTTP client, no DNS resolver, no analytics SDK. Data egress requires rewriting the app.  
+**Explainable verdicts.** Every SCAM or SUSPICIOUS flag surfaces the specific regex signals that contributed to it.
 
 ---
 
 ## Architecture
 
-<img src="docs/architecture.svg" alt="Defendra 5-layer detection architecture" width="720"/>
+```
+┌──────────────────────────────────────────────────────────────────┐
+│  1. Sources         BroadcastReceiver (RECEIVE_SMS)              │
+│                     Manual scan (paste / share-to)               │
+├──────────────────────────────────────────────────────────────────┤
+│  2. Platform        Kotlin BroadcastReceiver                     │
+│                     → Flutter MethodChannel → Dart               │
+├──────────────────────────────────────────────────────────────────┤
+│  3. ML Engine       Dart WordPiece tokenizer                     │
+│                     → LiteRT interpreter (CPU / XNNPACK)         │
+│                     → regex rule matcher → verdict logic         │
+├──────────────────────────────────────────────────────────────────┤
+│  4. Business Logic  Riverpod providers                           │
+│                     (InboxProvider, ScannerProvider)             │
+├──────────────────────────────────────────────────────────────────┤
+│  5. Storage / UI    Hive (local) → Flutter UI                    │
+│                     No outbound path at any layer                │
+└──────────────────────────────────────────────────────────────────┘
+```
 
-**The no-network-layer guarantee is structural, not policy.**
-There is no HTTP client, no DNS resolver, no analytics SDK, no crash reporter in the binary. The privacy commitment cannot be silently removed by a config flag or server-side change — it requires rewriting the app.
+Privacy is a constraint, not a policy — there is no network layer in the binary.
 
 ---
 
-## ML Model
+## Tech Stack
 
-### Architecture
+| Component          | Technology                                                    |
+|--------------------|---------------------------------------------------------------|
+| Framework          | Flutter 3.44, Dart                                            |
+| State management   | Riverpod 2.x                                                  |
+| ML runtime         | LiteRT (`flutter_litert`)                                     |
+| Storage            | Hive 2.x (local; encryption not yet enabled)                  |
+| Platform bridge    | Kotlin BroadcastReceiver via Flutter MethodChannel            |
+| Model training     | PyTorch + HuggingFace Transformers, Google Colab / Kaggle     |
+| Model conversion   | litert-torch (`torch.export` → StableHLO → `.tflite`)         |
 
-Base: `distilbert-base-multilingual-cased` — 6 transformer layers, hidden dim 768, 119,547-token vocabulary, 134M parameters. Fine-tuned for 4-class SMS classification: `safe`, `otp_kyc`, `delivery_courier`, `digital_arrest`.
+Android-only. iOS does not expose a `RECEIVE_SMS` equivalent.
 
-`otp_kyc` is a consolidated bucket covering OTP harvesting, KYC fraud, bank impersonation, refund scams, job scams, lottery, electricity bill fraud, and loan fraud. These sub-types share the same user action (share a code / transfer money urgently) and are semantically close in embedding space.
+---
 
-### Size Engineering
+## ML Pipeline
 
-The multilingual embedding table — 119,547 tokens × 768 dims — is the dominant cost. It is 67.7% of the model by size and 68.5% of parameters.
+### Dataset
 
-| Step                             | What changed                                                                                                                                                              | Size       |
-| -------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------- |
-| Float32 baseline                 | —                                                                                                                                                                         | **515 MB** |
-| INT8 quantization (weights only) | Transformer layers quantized to INT8; embedding stays fp32                                                                                                                | **392 MB** |
-| Vocab prune + INT8               | Tokenized full training corpus; kept only 38,400 of 119,547 tokens seen in SMS domain (67.9% reduction); sliced 81,147 dead embedding rows; full INT8 including embedding | **114 MB** |
+~2,300 labelled SMS after deduplication from ~2,900 raw rows. Sources: Kaggle India spam-ham corpus (majority), manually authored templates derived from TRAI/CERT-In documented scam patterns, and a small number of real inbox examples.
 
-**Why embedding stays fp32 in the unpruned INT8 model:** `tflite_flutter 0.12.0` (backed by TFLite 2.16) cannot consume native int8-quantized output tensors without explicit Dart dequantization code. The pruned INT8 model uses `dynamic_wi8_afp32` (weights INT8, activations fp32), which quantizes the embedding as a weight tensor and is directly consumable.
+Two meaningfully populated classes: **safe** (~2,018 rows) and **scam** (~286 rows). The training corpus is approximately 87% safe — close to a filtered real inbox, not a balanced fraud dataset. A four-class taxonomy (`otp_kyc` / `delivery_courier` / `digital_arrest`) is modelled as output heads but **per-class data collection is ongoing and insufficient for reliable held-out evaluation**. In operational terms this is a binary classifier: safe vs. scam.
 
-The currently bundled asset (`assets/ml/model.tflite`) is the 515 MB float32 model. The 392 MB and 114 MB variants are present in the repository and pass accuracy parity (see below). Switching the bundled asset is a one-line change in `pubspec.yaml`.
+### Training
 
-### Quantization Method
+- Base: `distilbert-base-multilingual-cased` — 6 transformer layers, hidden dim 768, 119,547-token multilingual vocabulary
+- Split: **group split by template ID**, not random row split. Messages sharing a template land in the same partition; no paraphrase of a training example appears in the test set.
+- Class-weighted cross-entropy loss to compensate for the 87 / 13 class imbalance.
 
-`dynamic_wi8_afp32` — channelwise INT8 weights, fp32 activations. Selected because:
+### Conversion Gate
 
-- Fully supported by `tflite_flutter 0.12.0` without Dart dequantization shims
-- Zero accuracy delta vs float32 on this dataset (see delta table below)
-- 2.7× faster inference on CPU vs float32 (67 ms vs 181 ms, dev machine)
+A converted model is accepted only when all three checks pass on the `.tflite` output:
 
-### Per-Class Metrics
+1. `interpreter.allocate_tensors()` completes without error
+2. Zero Flex ops — all ops resolved to built-in TFLite kernels
+3. Finite, non-NaN logits on a fixed probe input
 
-**Test set: n = 461** (stratified 80/20 split, `random_state=42`).
-Split breakdown: safe n=404, otp_kyc n=41, delivery_courier n=8, digital_arrest n=8.
+Conversion path: `torch.export` → litert-torch → StableHLO → `.tflite`.
 
-> ⚠ delivery_courier and digital_arrest test sets are 8 samples each. Recall figures for these classes are directional, not statistically stable. A 1-sample misclassification moves recall by 12.5 pp.
+### Model Size
 
-**INT8 model (392 MB) — identical to float32 on this dataset (Δ = 0.0 pp all classes):**
+| Variant                          | Size              |
+|----------------------------------|-------------------|
+| Float32 (current bundled asset)  | ~540 MB           |
+| INT8 dynamic-range               | [PLACEHOLDER] MB  |
 
-| Class                | Recall     | FPR  | Test n  |
-| -------------------- | ---------- | ---- | ------- |
-| safe                 | 99.0%      | 1.8% | 404     |
-| otp_kyc              | 92.7%      | 2.1% | 41      |
-| delivery_courier     | 62.5%      | 0.0% | 8       |
-| digital_arrest       | 75.0%      | 0.4% | 8       |
-| **overall accuracy** | **97.40%** | —    | **461** |
-
-Overall accuracy (97.40%) is dominated by the 87.6% safe majority. The minority-class figures are the meaningful signal.
-
-**Confusion matrix (rows = actual, columns = predicted):**
-
-<img src="docs/confusion_matrix.png" alt="Confusion matrix — INT8 model, n=461" width="600"/>
-
-Notable patterns: 3 of 8 delivery messages are misclassified as `otp_kyc` (both categories share urgency language and amount mentions). 2 digital-arrest messages are classified as `otp_kyc` (authority-impersonation patterns overlap). Zero false scams classified as each other across the safe/scam boundary — the model does not invent scam verdicts for safe messages.
-
-### Inference Latency
-
-Measured on Windows 11 Pro, Intel CPU, Python `ai_edge_litert` 2.1.5 (same TFLite runtime as the Android build). **This is a dev machine, not a target Android device.** No mobile measurements have been collected yet — see [Honest Limitations](#honest-limitations).
-
-| Model            | Median   | p95      | Platform       |
-| ---------------- | -------- | -------- | -------------- |
-| Float32 (515 MB) | 180.9 ms | 190.7 ms | Windows 11 CPU |
-| INT8 (392 MB)    | 67.5 ms  | 84.2 ms  | Windows 11 CPU |
-
-Mobile inference numbers will differ. On a mid-range ARM64 device (Snapdragon 680 / Dimensity 700 class) without NNAPI delegation, CPU-only TFLite INT8 for a 6-layer BERT at seqlen 96 is typically 200–500 ms. With NNAPI DSP delegation, latency can drop to 50–150 ms.
+The dominant cost is the embedding table: 119,547 tokens × 768 dims ≈ 350 MB at float32. Reducing to a Play Store-acceptable APK budget requires vocabulary pruning (retain only tokens observed in the SMS domain) or switching to a smaller architecture; both are roadmap items.
 
 ### Verdict Logic
 
 ```
-p_scam_total = prob[otp_kyc] + prob[delivery] + prob[digital_arrest]
-has_signals  = rule matcher fired ≥1 key
-has_high_signal = fired key ∈ {digital_arrest, lottery, job_scam, delivery_fee}
+p_scam      = model output probability for the scam class
+rule_signal = regex rule matcher fired ≥ 1 pattern
 
-if p_scam_total > 0.85 AND has_signals  → SCAM
-if p_scam_total > 0.50 AND has_signals  → SUSPICIOUS
-if p_scam_total > 0.50 AND NOT signals  → SAFE  (rule override, ruleOverride=true)
-else                                    → SAFE
-
-# High-signal upgrade: near-zero-FP rules can escalate ML-uncertain safe verdict
-if has_high_signal AND verdict==SAFE AND p_safe < 0.75 → SUSPICIOUS
+if p_scam > 0.85  AND rule_signal  → SCAM
+if p_scam > 0.50  AND rule_signal  → SUSPICIOUS
+else                               → SAFE
 ```
 
-**Why the rule gate exists:** The training set is 87.6% safe. A fine-tuned classifier on an imbalanced set can produce confident-looking softmax outputs on safe messages whose surface features happen to resemble scam text (urgency language, amount mentions). The rule matcher requires at least one concrete lexical signal to be present before a scam verdict is reported. This prevents the model from firing on "Meeting at 5 PM — transfer ₹500 for lunch" purely because of the amount token.
+The rule gate is a deliberate design choice, not a patch. Fine-tuning on an 87% safe corpus can produce confident-looking softmax outputs on safe messages whose surface features resemble scam text (urgency phrasing, amount tokens). Requiring at least one concrete lexical signal before issuing a scam verdict prevents the model from firing on coincidental feature overlap — e.g., "Transfer ₹500 for lunch." The tradeoff is explicit: a scam message that leaves no regex-detectable trace is capped at SAFE. The 11 current rule patterns cover the high-confidence linguistic markers of documented Indian SMS fraud categories.
 
-The tradeoff: a scam message with no regex-detectable surface signals will be capped at `SAFE`. In practice, the 11 signal patterns cover the high-confidence linguistic markers of each scam category and have near-zero false-positive rate.
+### Metrics
 
----
+Evaluated on a held-out test set (group split; no template overlap with training data):
 
-## Dataset
+| Metric                                 | Value                                         |
+|----------------------------------------|-----------------------------------------------|
+| Scam-class recall                      | [PLACEHOLDER]                                 |
+| Safe false-positive rate               | [PLACEHOLDER]                                 |
+| On-device inference latency — p50      | [PLACEHOLDER]                                 |
+| On-device inference latency — p95      | [PLACEHOLDER]                                 |
+| Device under test                      | [PLACEHOLDER, e.g. Snapdragon 4 Gen 1]        |
 
-### Sources
+Dev-machine numbers (Windows 11, Intel CPU, Python litert runtime) are not reported here; they do not predict Android inference performance.
 
-| Source                    | Rows      | %     | Notes                                                                                            |
-| ------------------------- | --------- | ----- | ------------------------------------------------------------------------------------------------ |
-| Kaggle India SMS spam-ham | 2,029     | 88.1% | Public dataset; predominantly English; skewed toward commercial spam rather than financial fraud |
-| Synthetic                 | 192       | 8.3%  | Generated and augmented examples for under-represented scam categories                           |
-| Manual seeds              | 80        | 3.5%  | Hand-labeled examples from real inbox patterns and documented scam templates                     |
-| Reddit / inbox            | 3         | 0.1%  | Opportunistic real examples                                                                      |
-| **Total (after dedup)**   | **2,304** |       | Deduped from 2,914 raw rows: 577 exact + 33 near-duplicate removals                              |
+### Known Limitations
 
-### Label Scheme
-
-Binary label (`0=safe`, `1=scam`) with a `category` field for the 4 ML classes:
-
-| ML class             | Category bucket                                                                                             | Examples                                                                  |
-| -------------------- | ----------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------- |
-| 0 — safe             | safe_promo (675), safe_generic (669), safe_personal (661), safe_transactional (13)                          | Promotional messages, OTPs from legitimate services, transactional alerts |
-| 1 — otp_kyc          | otp (40), kyc (42), bank_impersonation (49), refund (34), job (14), lottery (11), electricity (9), loan (8) | "Your OTP is X — do not share", "KYC update required or account blocked"  |
-| 2 — delivery_courier | delivery (40)                                                                                               | "Your package is held at customs. Pay ₹499 to release."                   |
-| 3 — digital_arrest   | digital_arrest (39)                                                                                         | "CBI officer speaking. You are under digital arrest."                     |
-
-### Collection Methodology
-
-Safe messages sourced from the Kaggle India dataset. Scam examples sourced via keyword search on the same dataset, augmented with manually authored templates matching documented fraud patterns from TRAI/CERT-In public advisories. Synthetic examples generated with controlled variation of sender name, amount, phone number, and urgency phrasing using the placeholder schema (`<phone>`, `<amount>`, `<otp>`, `<url>`, `<name>`).
-
-### Known Biases and Limits
-
-- **Class imbalance (12.4% scam):** Significantly below the 35–60% target ratio. The model is trained on a dataset that more closely resembles a filtered inbox than raw SMS traffic from a fraud-exposed user. This inflates safe recall and likely deflates scam recall at deployment.
-- **Language coverage (English 91.9%, Hinglish 4.4%, Hindi 3.7%):** The 40% Hindi/Hinglish coverage target is unmet. The model will perform worse on Devanagari-heavy messages. `distilbert-base-multilingual-cased` does have Hindi subword coverage in its 119k vocab, but the fine-tuning signal for that language is thin.
-- **Small scam test sets:** delivery_courier (n=8) and digital_arrest (n=8) metrics have ±12.5 pp noise floor. Recall figures for these classes should be treated as directional.
-- **No real-world deployment test:** The 169 `review_needed` rows in the dataset have not been manually audited. Some may be mislabeled.
-- **Temporal drift:** Scam patterns evolve. The Kaggle India dataset has no date stamps; recency distribution is unknown.
+- **Binary today.** Effective two-class classifier. The 4-class taxonomy is pending data collection to a defensible per-class threshold.
+- **Thin scam data.** ~286 scam examples; minority class is structurally under-represented relative to real fraud exposure rates.
+- **Model size.** ~540 MB float32 / [PLACEHOLDER] MB INT8. Neither variant fits in a standard APK without vocabulary pruning or an architecture change.
+- **No GPU delegation.** The model graph includes `GATHER_ND` ops (embedding lookup) and int64 tensors, both unsupported by the Android GPU delegate. Inference runs on CPU via XNNPACK.
+- **Language coverage.** Fine-tuned on ~92% English data. Performance on Hindi and Hinglish is structurally understated; real-world false-negative rate on Devanagari-heavy scam messages is unknown.
 
 ---
 
@@ -183,114 +136,67 @@ Safe messages sourced from the Kaggle India dataset. Scam examples sourced via k
 
 ### Prerequisites
 
-- Flutter SDK ≥ 3.12.0
-- Android SDK (API 21+, arm64-v8a target)
-- The model asset `assets/ml/model.tflite` must be present (515 MB, tracked via Git LFS or downloaded separately — see below)
-
-> **Model download:** The TFLite model is too large for standard Git tracking. If cloning fresh, download from the release assets and place at `assets/ml/model.tflite`. The pruned INT8 variant (`assets/ml/model_pruned_int8.tflite`, 114 MB) can be swapped in by updating `pubspec.yaml` and `lib/ml/ml_engine.dart` → `load()`.
+- Flutter SDK ≥ 3.44
+- Android SDK, API 21+, `arm64-v8a` target
+- Git LFS — the `.tflite` asset exceeds GitHub's 100 MB file limit and is tracked via LFS
 
 ### Steps
 
 ```bash
-git clone https://github.com/dwakshar/defendra.git
+git clone [PLACEHOLDER — GitHub URL]
 cd defendra
+git lfs pull                      # downloads assets/ml/model.tflite (~540 MB)
 flutter pub get
-flutter run                      # debug on connected device
-flutter build apk --release      # release APK (currently ~540 MB with float32 model)
+flutter run                       # debug build on connected device
+flutter build apk --release       # release APK
 ```
 
-### Switching to the Pruned INT8 Model
+The model lives at `assets/ml/`. Its filename is declared in `pubspec.yaml`; swapping to a quantized variant is a one-line change there plus a corresponding path update in `lib/ml/ml_engine.dart`.
 
-```yaml
-# pubspec.yaml — swap the asset reference
-assets:
-  - assets/ml/model_pruned_int8.tflite # was model.tflite
-  - assets/ml/vocab_pruned.json # was vocab.json
-```
+### Distribution
 
-The Dart tokenizer must also be updated to load `vocab_pruned.json`. This is a single path change in `lib/ml/ml_engine.dart → load()`.
-
-### Running the Python Evaluation
-
-```bash
-pip install ai-edge-litert pandas scikit-learn
-python scripts/eval_int8.py       # float32 vs INT8 metrics on held-out test set
-python scripts/prune_vocab.py     # 6-step vocab prune + INT8 + parity check
-```
+Google Play requires apps using `READ_SMS` / `RECEIVE_SMS` to hold default-SMS-app status or an approved exception — neither applies here. Defendra ships via **F-Droid and direct APK**. Play Store distribution is a roadmap item contingent on exception approval.
 
 ---
 
 ## Privacy
 
-**Three permissions. No extras.**
+| Permission           | Required for                                               |
+|----------------------|------------------------------------------------------------|
+| `RECEIVE_SMS`        | Intercept incoming SMS before the system default app       |
+| `READ_SMS`           | Scan the existing inbox on first launch                    |
+| `POST_NOTIFICATIONS` | Alert the user on a high-confidence SCAM verdict           |
 
-| Permission           | Why                                           |
-| -------------------- | --------------------------------------------- |
-| `RECEIVE_SMS`        | Intercept incoming SMS before the default app |
-| `READ_SMS`           | Read existing inbox on first launch           |
-| `POST_NOTIFICATIONS` | Alert on high-confidence scam verdict         |
+No location. No contacts. No camera. No microphone. No internet.
 
-No location, no contacts, no camera, no microphone, no internet.
+SMS text flows: `BroadcastReceiver → MethodChannel → Dart isolate → LiteRT → rule matcher → verdict → Hive → UI`. There is no outbound path at any layer. The codebase contains no HTTP client, no Firebase, no Crashlytics, no analytics endpoint. Removing this guarantee requires adding a network layer and rebuilding the app — it cannot happen via a remote config change.
 
-**The privacy guarantee is structural:**
+Scan history (sender, body, verdict, timestamp) is stored in a Hive box on-device. Hive encryption is not yet enabled; device-level full-disk encryption is the current protection boundary.
 
-SMS text flows: BroadcastReceiver → Dart process → TFLite isolate → verdict → Hive local storage → UI. There is no outbound path. The codebase contains no HTTP client, no DNS lookup, no Firebase, no Crashlytics, no ad SDK, no analytics endpoint. Removing the privacy guarantee requires adding a network layer and rebuilding the app — it cannot happen via a remote config change.
-
-Scan history is stored in a [Hive](https://pub.dev/packages/hive) box on-device (sender, body, verdict, timestamp). Hive encryption is not yet enabled; full-disk encryption via Android is the current protection.
-
----
-
-## Honest Limitations
-
-**Small test set.** 461 samples total; delivery_courier and digital_arrest evaluated on 8 samples each. Recall figures for minority classes are directional, not reliable. A proper evaluation requires at minimum 200 samples per class.
-
-**No mobile latency measurements.** All inference numbers in this README were collected on a Windows 11 dev machine (Intel CPU, TFLite Python runtime). No profiling has been done on a physical Android device. On a Snapdragon 680-class device without NNAPI delegation, expect 200–500 ms per inference with the INT8 model. This exceeds the <50 ms target. Reaching that target on-device requires NNAPI delegation or an architecture change.
-
-**Model size reality.** The pruned INT8 model is 114 MB. The full unpruned INT8 model is 392 MB. Neither is a sub-30 MB artifact, and neither will fit in a 30 MB APK budget.
-
-Why: `distilbert-base-multilingual-cased` carries a 119,547-token multilingual vocabulary specifically to cover 104 languages. After pruning to the 38,400 tokens seen in the SMS corpus, the embedding table at INT8 is ~30 MB. The 6 transformer layers at INT8 add ~42 MB. FlatBuffer overhead and model metadata account for the rest of the 114 MB total.
-
-If sub-30 MB were a hard requirement the architecture would change to one of:
-
-- **MobileBERT-tiny or TinyBERT** (~14–20 MB INT8), accepting 3–5 pp F1 regression on minority classes
-- **fastText** (1–5 MB), with a purpose-built Hinglish word list; near-instant inference; no contextual representations
-- **Custom BERT-mini** (L=2, H=256, ~4M params INT8 ≈ 7 MB), requiring training from scratch on a larger dataset
-
-**Play Store SMS policy.** Google's `READ_SMS` / `RECEIVE_SMS` policy requires demonstrating core use-case necessity. Default-SMS-app status or an approved exception is required for Play Store distribution. This is a distribution constraint, not a technical one.
-
-**Language coverage.** The model is fine-tuned on 91.9% English data. Hindi and Hinglish performance is understated by the test metrics. Real-world false-negative rate on Hindi-primary scam messages is unknown and likely higher than the 92.7% otp_kyc recall suggests.
-
-**No adversarial robustness testing.** Scammers adapt. A model trained on 2024–2025 templates will degrade as phrasing evolves. No red-team evaluation has been done.
+Open source: [PLACEHOLDER — GitHub URL].
 
 ---
 
 ## Roadmap
 
-- [ ] **Wire up pruned INT8 model** — swap `model.tflite` → `model_pruned_int8.tflite`; update vocab path; validate parity on device
-- [ ] **Physical device benchmark** — measure inference latency, cold start, and peak RSS on a real mid-range Android device; tune NNAPI delegation
-- [ ] **Expand scam dataset** — target 35–60% scam ratio; add 200+ samples per class; boost Hindi/Hinglish to ≥40% of training data
-- [ ] **Hive encryption** — enable AES-256 Hive box encryption for scan history
-- [ ] **More languages** — dedicated fine-tuning batches for Tamil, Telugu, Bengali (top SMS languages after Hindi/English in India)
-- [ ] **Voice scam detection** — extend to call-transcript analysis; different model architecture (sequence-to-sequence or audio embedding)
-- [ ] **Family mode** — shared alert profile for a household; one person's flagged number propagates to family members (local P2P, no cloud)
-- [ ] **Federated learning** — user-consented local fine-tuning on misclassified messages; aggregate updates via differential privacy; no raw message content leaves device
+- **4-class taxonomy** — `otp_kyc` / `delivery_courier` / `digital_arrest` as distinct evaluated output classes, contingent on reaching ≥ 200 held-out examples per class.
+- **Hindi / Hinglish expansion** — dedicated fine-tuning corpus; target ≥ 40% non-English training data.
+- **Additional Indian languages** — Tamil, Telugu, Bengali.
+- **Voice / call scam detection** — transcript or audio-embedding approach; requires a different model architecture.
+- **Hive encryption** — AES-256 for the on-device scan history box.
+- **Play Store distribution** — subject to SMS-permission exception approval.
 
 ---
 
-## Stack
+## Screenshots / Demo
 
-| Layer         | Tech                                           |
-| ------------- | ---------------------------------------------- |
-| Framework     | Flutter 3.x, Dart                              |
-| State         | Riverpod 2.x                                   |
-| ML runtime    | tflite_flutter 0.12.0 (TFLite 2.16)            |
-| Model         | distilbert-base-multilingual-cased, fine-tuned |
-| Storage       | Hive 2.x (local, unencrypted in current build) |
-| Notifications | flutter_local_notifications                    |
-| Charts        | fl_chart                                       |
-| Permissions   | permission_handler                             |
+[PLACEHOLDER — inbox screenshot: safe / suspicious / scam row states]  
+[PLACEHOLDER — detail screen: verdict breakdown + triggered rule signals]  
+[PLACEHOLDER — 30-second demo GIF: incoming scam SMS → notification → verdict screen]
 
-Android-only for SMS interception. The Flutter layer is cross-platform; iOS does not expose `RECEIVE_SMS` equivalent.
+---
+
+[PLACEHOLDER — engineering write-up: model conversion, verdict logic, size engineering]
 
 ---
 
