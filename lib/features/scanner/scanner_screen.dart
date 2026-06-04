@@ -6,6 +6,7 @@ import '../../core/theme/colors.dart';
 import '../../core/theme/typography.dart';
 import '../../data/models/scan_record.dart';
 import '../../ml/ml_engine.dart';
+import '../../ml/ml_engine_provider.dart';
 import '../detail/detail_screen.dart';
 import '../inbox/inbox_provider.dart';
 import 'sample_messages.dart';
@@ -57,14 +58,17 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
 
   void _loadSample(String text) {
     _controller.text = text;
-    _controller.selection =
-        TextSelection.collapsed(offset: text.length);
+    _controller.selection = TextSelection.collapsed(offset: text.length);
+    // Auto-scan immediately so the user sees a result without pressing SCAN.
+    _lastScannedText = text;
+    ref.read(scannerProvider.notifier).scan(text);
   }
 
   @override
   Widget build(BuildContext context) {
     final state = ref.watch(scannerProvider);
     final notifier = ref.read(scannerProvider.notifier);
+    final mlOffline = ref.watch(mlOfflineProvider);
     final recentRecords =
         ref.watch(inboxNotifierProvider).take(3).toList();
 
@@ -94,6 +98,26 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (mlOffline)
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: context.dCard,
+                    border: Border.all(color: context.dBorder),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'ML engine loading — verdicts are rule-based only',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 10,
+                      color: context.dMuted,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
               TextField(
                 controller: _controller,
                 maxLines: 6,

@@ -67,4 +67,6 @@ flutter:
 
   assets:
     - assets/ml/defendra_int8.tflite
+    - assets/ml/vocab_pruned.json
+    - assets/ml/vocab.json
     - assets/images/
