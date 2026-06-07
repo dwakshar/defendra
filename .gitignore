@@ -51,3 +51,8 @@ assets/ml/model_wi8_test.tflite
 
 # Android build outputs
 android/build/
+
+# Signing credentials — never commit
+android/key.properties
+*.jks
+*.keystore
