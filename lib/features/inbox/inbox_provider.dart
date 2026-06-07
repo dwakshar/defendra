@@ -33,9 +33,8 @@ class InboxNotifier extends StateNotifier<List<ScanRecord>> {
   }
 
   @visibleForTesting
-  InboxNotifier.preset(List<ScanRecord> records, Ref ref)
-      : _ref = ref,
-        super(records);
+  InboxNotifier.preset(super.records, Ref ref)
+      : _ref = ref;
 
   final Ref _ref;
 

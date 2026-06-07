@@ -10,9 +10,11 @@ class MainActivity : FlutterActivity() {
 
     private var smsChannel: MethodChannel? = null
     private var phoneChannel: MethodChannel? = null
+    private var mlChannel: MlInferenceChannel? = null
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+        mlChannel = MlInferenceChannel(flutterEngine.dartExecutor.binaryMessenger)
 
         smsChannel = MethodChannel(
             flutterEngine.dartExecutor.binaryMessenger,
@@ -57,6 +59,8 @@ class MainActivity : FlutterActivity() {
         smsChannel = null
         phoneChannel?.setMethodCallHandler(null)
         phoneChannel = null
+        mlChannel?.dispose()
+        mlChannel = null
         super.onDestroy()
     }
 }

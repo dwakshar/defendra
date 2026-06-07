@@ -22,6 +22,10 @@ android {
         versionName = flutter.versionName
     }
 
+    aaptOptions {
+        noCompress("tflite")
+    }
+
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")
@@ -47,4 +51,5 @@ flutter {
 
 dependencies {
     coreLibraryDesugaring("com.android.tools:desugar_jdk_libs:2.1.4")
+    implementation("com.google.ai.edge.litert:litert:1.4.1")
 }

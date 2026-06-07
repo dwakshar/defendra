@@ -83,6 +83,7 @@ class _InboxScreenState extends ConsumerState<InboxScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (ref.watch(mlOfflineProvider)) const _MlOfflineBanner(),
+          if (ref.watch(mlLoadingProvider)) const _MlLoadingBanner(),
           if (_permissionDenied) _PermissionBanner(onGrant: _requestPermission),
 
           _FilterTabRow(
@@ -337,24 +338,47 @@ class _Tab extends StatelessWidget {
 }
 
 // ---------------------------------------------------------------------------
-// ML offline banner — shown when the engine provider errored or is loading.
+// ML status banners
 // ---------------------------------------------------------------------------
 
-class _MlOfflineBanner extends StatelessWidget {
+class _MlOfflineBanner extends ConsumerWidget {
   const _MlOfflineBanner();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final err = ref.watch(mlErrorProvider);
+    final msg = err != null
+        ? 'ML engine failed — verdicts are rule-only\n$err'
+        : 'ML engine failed to load — verdicts are rule-only';
+    return Container(
+      width: double.infinity,
+      color: context.dCard,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+      child: Text(
+        msg,
+        style: GoogleFonts.jetBrainsMono(
+          fontSize: 11,
+          color: DefendraColors.scam,
+        ),
+      ),
+    );
+  }
+}
+
+class _MlLoadingBanner extends StatelessWidget {
+  const _MlLoadingBanner();
 
   @override
   Widget build(BuildContext context) {
     return Container(
       width: double.infinity,
-      color: DefendraColors.scam,
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      color: context.dCard,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
       child: Text(
-        'ML engine offline — verdicts are rule-only',
-        style: GoogleFonts.inter(
-          fontSize: 12,
-          fontWeight: FontWeight.w500,
-          color: Colors.white,
+        'ML engine loading…',
+        style: GoogleFonts.jetBrainsMono(
+          fontSize: 11,
+          color: context.dMuted,
         ),
       ),
     );

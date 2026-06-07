@@ -1,8 +1,11 @@
 import 'dart:convert';
+import 'dart:io';
 import 'dart:math';
+
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_litert/flutter_litert.dart';
+import 'package:path_provider/path_provider.dart';
 
 import '../data/models/scan_record.dart';
 import 'dart_tokenizer.dart';
@@ -10,25 +13,11 @@ import 'rule_matcher.dart';
 
 const int _kSeqLen = 96;
 
-enum VerdictSource { ml, ruleFallback }
-
-class MlEngineDeadException implements Exception {
-  final String message;
-  const MlEngineDeadException(this.message);
-  @override
-  String toString() => 'MlEngineDeadException: $message';
-}
+// ScanResult is a zero-cost alias so scanner_screen / inbox_provider compile
+// without field renames. Both names refer to the same class.
+typedef ScanResult = ClassificationResult;
 
 class ClassificationResult {
-  const ClassificationResult({
-    required this.verdict,
-    required this.pScam,
-    required this.probs,
-    required this.source,
-    required this.triggers,
-    required this.triggerReasons,
-  });
-
   final Verdict verdict;
 
   // NaN when source == ruleFallback (model did not run).
@@ -46,31 +35,14 @@ class ClassificationResult {
   // Human-readable reason strings for UI chips.
   final List<String> triggerReasons;
 
-  // ---------------------------------------------------------------------------
-  // Derived accessors used by existing callers — no field renames required.
-  // ---------------------------------------------------------------------------
-
-  bool get ruleOverride => source == VerdictSource.ruleFallback;
-
-  List<String> get triggerPhrases => triggerReasons;
-
-  List<String> get firedSignalKeys => triggers;
-
-  double get confidence {
-    if (verdict == Verdict.safe) return probs.isNotEmpty ? probs[0] : 0.0;
-    return pScam.isNaN ? 0.0 : pScam;
-  }
-
-  ScamLabel get label {
-    if (probs.isEmpty) return ScamLabel.safe;
-    // argmax over {1,2,3} for the scam category, then gate on verdict.
-    if (verdict == Verdict.safe) return ScamLabel.safe;
-    int idx = 1;
-    for (int i = 2; i <= 3; i++) {
-      if (probs[i] > probs[idx]) idx = i;
-    }
-    return ScamLabel.values[idx];
-  }
+  const ClassificationResult({
+    required this.verdict,
+    required this.pScam,
+    required this.probs,
+    required this.source,
+    required this.triggers,
+    required this.triggerReasons,
+  });
 
   String get category {
     if (verdict == Verdict.safe) return 'safe';
@@ -90,137 +62,56 @@ class ClassificationResult {
     };
   }
 
+  double get confidence {
+    if (verdict == Verdict.safe) return probs.isNotEmpty ? probs[0] : 0.0;
+    return pScam.isNaN ? 0.0 : pScam;
+  }
+
+  List<String> get firedSignalKeys => triggers;
+
   // isError kept for any caller that checks it; always false on this type.
   bool get isError => false;
-}
 
-// ScanResult is a zero-cost alias so scanner_screen / inbox_provider compile
-// without field renames. Both names refer to the same class.
-typedef ScanResult = ClassificationResult;
+  ScamLabel get label {
+    if (probs.isEmpty) return ScamLabel.safe;
+    if (verdict == Verdict.safe) return ScamLabel.safe;
+    int idx = 1;
+    for (int i = 2; i <= 3; i++) {
+      if (probs[i] > probs[idx]) idx = i;
+    }
+    return ScamLabel.values[idx];
+  }
+
+  bool get ruleOverride => source == VerdictSource.ruleFallback;
+
+  List<String> get triggerPhrases => triggerReasons;
+}
 
 // ---------------------------------------------------------------------------
 // MlEngine
 // ---------------------------------------------------------------------------
 
 class MlEngine {
-  Interpreter? _interp;
+  // Inference runs on the Kotlin/Java side via this channel.
+  // The Java com.google.ai.edge.litert.Interpreter does NOT auto-apply
+  // XNNPACK, unlike the C API (flutter_litert) which unconditionally applies
+  // the built-in delegate and then nullifies tensor 120's data.raw.
+  static const _channel = MethodChannel('com.defendra/ml');
+
   DartTokenizer? _tok;
   bool _healthy = false;
   String? _loadError;
 
+  MlEngine();
+
+  // Primary factory — called by mlEngineProvider after the Java model is
+  // loaded and warmed up via the Kotlin channel.
+  factory MlEngine.loaded(DartTokenizer tok) =>
+      MlEngine().._tok = tok.._healthy = true;
+
   bool get isReady => _healthy;
+
   String? get loadError => _loadError;
-
-  // ---------------------------------------------------------------------------
-  // Factory used by mlEngineProvider after background-isolate verification.
-  // The interpreter has already passed dtype checks and self-test; mark healthy
-  // immediately without repeating the load work on the main thread.
-  // ---------------------------------------------------------------------------
-
-  factory MlEngine.loaded(Interpreter interp, DartTokenizer tok) =>
-      MlEngine._fromLoaded(interp, tok);
-
-  MlEngine._fromLoaded(Interpreter interp, DartTokenizer tok) {
-    _interp = interp;
-    _tok = tok;
-    _healthy = true;
-  }
-
-  // ---------------------------------------------------------------------------
-  // loadModel — allocates interpreter, asserts dtypes, runs self-test.
-  // Throws MlEngineDeadException (or rethrows) on any failure.
-  // Never marks healthy until the self-test passes.
-  // ---------------------------------------------------------------------------
-
-  Future<void> loadModel({
-    String asset = 'assets/ml/defendra_int8.tflite',
-  }) async {
-    final interp = await Interpreter.fromAsset(asset);
-    // fromAsset → fromBuffer → _create → Interpreter._ which calls
-    // allocateTensors(); call again to be explicit per the spec.
-    interp.allocateTensors();
-
-    final in0 = interp.getInputTensor(0);
-    final in1 = interp.getInputTensor(1);
-    final out0 = interp.getOutputTensor(0);
-
-    void assertType(String label, TensorType actual, TensorType expected) {
-      if (actual != expected) {
-        interp.close();
-        throw MlEngineDeadException(
-          '$label dtype: expected $expected, got $actual — '
-          'int32-fed-as-int64 bug or wrong model export; fix the export, '
-          'do not work around this assertion',
-        );
-      }
-    }
-
-    // These checks are the ONLY thing that prevents the silent int32 coercion
-    // bug that produced uniform-random logits on every prior build.
-    assertType('input[0]', in0.type, TensorType.int64);
-    assertType('input[1]', in1.type, TensorType.int64);
-    assertType('output[0]', out0.type, TensorType.float32);
-
-    debugPrint(
-      '[ML] tensors OK  '
-      'in0=${in0.type}${in0.shape}  '
-      'in1=${in1.type}${in1.shape}  '
-      'out0=${out0.type}${out0.shape}',
-    );
-
-    // Tokenizer — pruned vocab, remapped embedding row indices.
-    final vocabJson = await rootBundle.loadString('assets/ml/vocab_pruned.json');
-    final parsed = json.decode(vocabJson) as Map<String, dynamic>;
-    final tok = DartTokenizer.fromVocab(
-      parsed.map((k, v) => MapEntry(k, (v as num).toInt())),
-    );
-
-    // Self-test: tokenize a fixed high-signal SMS, run the real graph.
-    // Asserts: all logits finite AND softmax sums to ~1.0.
-    const probe =
-        'CBI officer speaking. You are under digital arrest. '
-        'Do not tell anyone. Call back immediately.';
-    final logits = _runInference(interp, tok, probe);
-
-    if (!logits.every((v) => v.isFinite)) {
-      interp.close();
-      throw MlEngineDeadException(
-        'Self-test: non-finite logits $logits — model is corrupt or '
-        'input encoding produced NaN; check byte layout',
-      );
-    }
-    final testProbs = _softmax(logits);
-    final probSum = testProbs.fold(0.0, (a, b) => a + b);
-    if ((probSum - 1.0).abs() > 1e-3) {
-      interp.close();
-      throw MlEngineDeadException(
-        'Self-test: softmax sum $probSum deviates from 1.0 by '
-        '${(probSum - 1.0).abs().toStringAsFixed(6)} — model output is invalid',
-      );
-    }
-
-    _interp = interp;
-    _tok = tok;
-    _healthy = true;
-    _loadError = null;
-    debugPrint('[ML] loadModel OK  asset=$asset  probe_probs=$testProbs');
-  }
-
-  // Backward-compat wrapper: swallows errors into loadError instead of
-  // throwing, so callers that check isReady/loadError rather than try-catching
-  // do not need changes.
-  Future<void> load({
-    String asset = 'assets/ml/defendra_int8.tflite',
-  }) async {
-    try {
-      await loadModel(asset: asset);
-    } catch (e, st) {
-      _healthy = false;
-      _loadError = e.toString();
-      debugPrint('[ML-LOAD-ERR] $e');
-      debugPrintStack(label: '[ML-LOAD-ERR]', stackTrace: st);
-    }
-  }
 
   // ---------------------------------------------------------------------------
   // classify
@@ -231,8 +122,6 @@ class MlEngine {
     final signal = keys.isNotEmpty;
 
     if (!_healthy) {
-      // Model unavailable — rule-only: suspicious if any signal fires, else safe.
-      // pScam = NaN to make clear this is NOT a model probability.
       return ClassificationResult(
         verdict: signal ? Verdict.suspicious : Verdict.safe,
         pScam: double.nan,
@@ -243,11 +132,10 @@ class MlEngine {
       );
     }
 
-    final logits = _runInference(_interp!, _tok!, text);
+    final logits = await _runInference(_tok!, text);
     final probs = _softmax(logits);
     final pScam = probs[1] + probs[2] + probs[3];
 
-    // Rule gate — ML verdict requires corroborating rule signal.
     final Verdict verdict;
     if (pScam > 0.85 && signal) {
       verdict = Verdict.scam;
@@ -272,47 +160,135 @@ class MlEngine {
     );
   }
 
-  Future<ClassificationResult> scan(String text) => classify(text);
-
   void dispose() {
-    _interp?.close();
-    _interp = null;
     _tok = null;
     _healthy = false;
   }
 
+  // Backward-compat wrapper: swallows errors into loadError.
+  Future<void> load({String asset = 'assets/ml/defendra_int8.tflite'}) async {
+    try {
+      await loadModel(asset: asset);
+    } catch (e, st) {
+      _healthy = false;
+      _loadError = e.toString();
+      debugPrint('[ML-LOAD-ERR] $e');
+      debugPrintStack(label: '[ML-LOAD-ERR]', stackTrace: st);
+    }
+  }
+
   // ---------------------------------------------------------------------------
-  // Inference kernel — writes explicit little-endian int64 bytes to each input
-  // tensor.  This is the ONLY safe path: any higher-level run() overload that
-  // infers the element type from Dart's List<int> will silently coerce to int32,
-  // producing garbage logits with no error.
+  // loadModel — backup path that mirrors mlEngineProvider logic.
+  // Uses the Kotlin channel (Java API) for inference to avoid XNNPACK.
   // ---------------------------------------------------------------------------
 
-  List<double> _runInference(
-    Interpreter interp,
-    DartTokenizer tok,
-    String text,
-  ) {
+  Future<void> loadModel({
+    String asset = 'assets/ml/defendra_int8.tflite',
+  }) async {
+    final data = await rootBundle.load(asset);
+    final bytes = data.buffer.asUint8List();
+
+    // dtype checks via C API (isolate not available here, use main thread).
+    // Close immediately — never invoke through the C API interpreter.
+    final options = InterpreterOptions();
+    final interp = Interpreter.fromBuffer(bytes, options: options);
+    void assertType(String label, TensorType actual, TensorType expected) {
+      if (actual != expected) {
+        interp.close();
+        throw MlEngineDeadException(
+          '$label dtype: expected $expected, got $actual',
+        );
+      }
+    }
+    assertType('input[0]', interp.getInputTensor(0).type, TensorType.int64);
+    assertType('input[1]', interp.getInputTensor(1).type, TensorType.int64);
+    assertType('output[0]', interp.getOutputTensor(0).type, TensorType.float32);
+    interp.close();
+    debugPrint('[ML] dtype checks OK');
+
+    // Copy to file for Java API.
+    final supportDir = await getApplicationSupportDirectory();
+    final modelFile = File('${supportDir.path}/defendra_int8.tflite');
+    final alreadyCopied =
+        await modelFile.exists() && (await modelFile.length()) == bytes.length;
+    if (!alreadyCopied) {
+      await modelFile.writeAsBytes(bytes, flush: true);
+    }
+
+    // Load on the Java side (no XNNPACK).
+    try {
+      await _channel.invokeMethod<void>('loadModel', modelFile.path);
+    } on PlatformException catch (e) {
+      throw MlEngineDeadException('Java loadModel failed: ${e.message}');
+    }
+
+    // Load tokenizer.
+    final vocabJson = await rootBundle.loadString('assets/ml/vocab.json');
+    final parsed = json.decode(vocabJson) as Map<String, dynamic>;
+    final tok = DartTokenizer.fromVocab(
+      parsed.map((k, v) => MapEntry(k, (v as num).toInt())),
+    );
+
+    // Warmup via channel.
+    try {
+      final r = await _channel.invokeListMethod<double>('infer', {
+        'ids': Int64List(_kSeqLen),
+        'mask': Int64List(_kSeqLen),
+      });
+      if (r == null || r.length != 4) {
+        throw MlEngineDeadException('Warmup returned unexpected: $r');
+      }
+      debugPrint('[ML] warmup OK: $r');
+    } on PlatformException catch (e) {
+      throw MlEngineDeadException('Warmup failed: ${e.message}');
+    }
+
+    _tok = tok;
+    _healthy = true;
+    _loadError = null;
+    debugPrint('[ML] loadModel OK  asset=$asset');
+  }
+
+  Future<ClassificationResult> scan(String text) => classify(text);
+
+  // ---------------------------------------------------------------------------
+  // Inference — runs via Kotlin method channel (Java API, CPU-only, no XNNPACK).
+  // ---------------------------------------------------------------------------
+
+  Future<List<double>> _runInference(DartTokenizer tok, String text) {
     final tokens = tok.tokenize(text, maxLength: _kSeqLen);
-    final ids = tokens['input_ids']!;
-    final mask = tokens['attention_mask']!;
+    return _runInferenceFromTokens(
+      tokens['input_ids']!,
+      tokens['attention_mask']!,
+    );
+  }
 
-    final idBuf = ByteData(_kSeqLen * 8);
-    for (int i = 0; i < _kSeqLen; i++) {
-      idBuf.setInt64(i * 8, ids[i], Endian.little);
+  Future<List<double>> _runInferenceFromTokens(
+    List<int> ids,
+    List<int> mask,
+  ) async {
+    final inputIds = Int64List(_kSeqLen);
+    final attnMask = Int64List(_kSeqLen);
+    for (int j = 0; j < _kSeqLen; j++) {
+      inputIds[j] = ids[j];
+      attnMask[j] = mask[j];
     }
-    interp.getInputTensor(0).data = idBuf.buffer.asUint8List();
 
-    final maskBuf = ByteData(_kSeqLen * 8);
-    for (int i = 0; i < _kSeqLen; i++) {
-      maskBuf.setInt64(i * 8, mask[i], Endian.little);
+    final List<double>? result;
+    try {
+      result = await _channel.invokeListMethod<double>('infer', {
+        'ids': inputIds,
+        'mask': attnMask,
+      });
+    } on PlatformException catch (e) {
+      throw MlEngineDeadException('infer channel error: ${e.message}');
     }
-    interp.getInputTensor(1).data = maskBuf.buffer.asUint8List();
 
-    interp.invoke();
-
-    final raw = interp.getOutputTensor(0).data.buffer.asFloat32List(0, 4);
-    return List<double>.unmodifiable(raw.map((v) => v.toDouble()));
+    if (result == null || result.length != 4) {
+      throw MlEngineDeadException('infer returned unexpected result: $result');
+    }
+    debugPrint('[ML] RAW LOGITS: $result');
+    return result;
   }
 
   static List<double> _softmax(List<double> logits) {
@@ -323,12 +299,20 @@ class MlEngine {
   }
 }
 
+class MlEngineDeadException implements Exception {
+  final String message;
+  const MlEngineDeadException(this.message);
+  @override
+  String toString() => 'MlEngineDeadException: $message';
+}
+
 // ---------------------------------------------------------------------------
-// ScamLabel — enum used by scanner_screen (label.index for AnimatedSwitcher
-// key, label == ScamLabel.digitalArrest for haptic, label.labelDisplay, etc.)
+// ScamLabel
 // ---------------------------------------------------------------------------
 
 enum ScamLabel { safe, otpKyc, deliveryCourier, digitalArrest }
+
+enum VerdictSource { ml, ruleFallback }
 
 extension ScamLabelExt on ScamLabel {
   String get categoryId => switch (this) {

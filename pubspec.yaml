@@ -19,7 +19,8 @@ dependencies:
   google_fonts: ^6.2.1
   flutter_svg: ^2.0.10+1
   flutter_local_notifications: ^21.0.0
-  flutter_litert: ^1.0.0
+  flutter_litert: ^2.0.0
+  path_provider: ^2.1.0
   fl_chart: ^0.69.0
   url_launcher: ^6.3.0
   share_plus: ^10.0.0
@@ -67,6 +68,5 @@ flutter:
 
   assets:
     - assets/ml/defendra_int8.tflite
-    - assets/ml/vocab_pruned.json
     - assets/ml/vocab.json
     - assets/images/

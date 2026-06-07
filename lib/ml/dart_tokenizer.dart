@@ -1,4 +1,3 @@
-import 'dart:collection';
 import 'dart:convert';
 
 import 'package:flutter/services.dart';
@@ -15,13 +14,13 @@ class DartTokenizer {
   static const _amountPlaceholder = '<amount>';
   static const _otpPlaceholder = '<otp>';
 
+  static const _kCacheMax = 64;
   Map<String, int> _vocab = {};
-  bool _loaded = false;
 
+  bool _loaded = false;
   // LRU tokenize cache — avoids re-tokenizing the same SMS body (retries,
   // background refresh). Bounded at 64 entries (~few KB per entry).
-  final _cache = LinkedHashMap<String, Map<String, List<int>>>();
-  static const _kCacheMax = 64;
+  final _cache = <String, Map<String, List<int>>>{};
   late int _padToken;
   late int _unkToken;
   late int _clsToken;
@@ -64,8 +63,9 @@ class DartTokenizer {
     int maxLength = defaultMaxLength,
   }) {
     if (!_loaded) throw StateError('DartTokenizer not loaded');
-    if (maxLength < 2)
+    if (maxLength < 2) {
       throw ArgumentError.value(maxLength, 'maxLength', 'must be at least 2');
+    }
 
     final cacheKey = '$maxLength\x00$text';
     final hit = _cache[cacheKey];
@@ -81,30 +81,20 @@ class DartTokenizer {
     return result;
   }
 
-  Map<String, List<int>> _tokenizeImpl(String text, {required int maxLength}) {
-    final preprocessed = _preprocess(text);
-    final words = _basicTokenize(preprocessed);
-    final ids = <int>[_clsToken];
+  List<String> _basicTokenize(String text) {
+    final spaced = _cleanAndSpace(text);
+    final rawTokens = spaced.trim().split(RegExp(r'\s+'));
 
-    for (final word in words) {
-      if (ids.length >= maxLength - 1) break;
-      final pieces = _wordpieceIds(word);
-      for (final id in pieces) {
-        if (ids.length >= maxLength - 1) break;
-        ids.add(id);
+    final result = <String>[];
+    for (final token in rawTokens) {
+      if (token.isEmpty) continue;
+      if (_isPreservedToken(token)) {
+        result.add(token);
+      } else {
+        result.addAll(_splitOnPunc(token));
       }
     }
-    ids.add(_sepToken);
-
-    final inputIds = List<int>.filled(maxLength, _padToken);
-    final attentionMask = List<int>.filled(maxLength, 0);
-
-    for (int i = 0; i < ids.length && i < maxLength; i++) {
-      inputIds[i] = ids[i];
-      attentionMask[i] = 1;
-    }
-
-    return {'input_ids': inputIds, 'attention_mask': attentionMask};
+    return result;
   }
 
   // ---------------------------------------------------------------------------
@@ -135,22 +125,6 @@ class DartTokenizer {
     return buf.toString();
   }
 
-  List<String> _basicTokenize(String text) {
-    final spaced = _cleanAndSpace(text);
-    final rawTokens = spaced.trim().split(RegExp(r'\s+'));
-
-    final result = <String>[];
-    for (final token in rawTokens) {
-      if (token.isEmpty) continue;
-      if (_isPreservedToken(token)) {
-        result.add(token);
-      } else {
-        result.addAll(_splitOnPunc(token));
-      }
-    }
-    return result;
-  }
-
   // ---------------------------------------------------------------------------
   // Initialisation helpers
   // ---------------------------------------------------------------------------
@@ -161,20 +135,16 @@ class DartTokenizer {
     _clsToken = _resolveSpecial(['[CLS]', '<s>'], fallback: 101);
     _sepToken = _resolveSpecial(['[SEP]', '</s>'], fallback: 102);
 
-    // Always enable placeholder substitution — do NOT gate on vocab containsKey.
-    // The pruned vocab lacks <url>/<phone>/<amount>/<otp> as top-level entries,
-    // but their constituent WordPiece pieces ARE present (< ##ur ##l ##> etc.).
-    // The greedy algorithm produces the correct multi-token IDs when the whole
-    // placeholder string is preserved by _basicTokenize and NOT split on < / >.
-    // Gating on vocab presence silently disables substitution and sends raw
-    // URL/phone/amount text to the model, which saw only placeholder tokens
-    // during fine-tuning (training data was fully normalized with build_dataset.py).
-    _urlToken    = _urlPlaceholder;
-    _phoneToken  = _phonePlaceholder;
-    _amountToken = _amountPlaceholder;
-    _otpToken    = _otpPlaceholder;
+    _urlToken = _vocab.containsKey(_urlPlaceholder) ? _urlPlaceholder : null;
+    _phoneToken = _vocab.containsKey(_phonePlaceholder)
+        ? _phonePlaceholder
+        : null;
+    _amountToken = _vocab.containsKey(_amountPlaceholder)
+        ? _amountPlaceholder
+        : null;
+    _otpToken = _vocab.containsKey(_otpPlaceholder) ? _otpPlaceholder : null;
 
-    _preservedTokens = [_urlToken!, _phoneToken!, _amountToken!, _otpToken!]
+    _preservedTokens = [?_urlToken, ?_phoneToken, ?_amountToken, ?_otpToken]
       ..sort((a, b) => b.length.compareTo(a.length));
   }
 
@@ -196,8 +166,9 @@ class DartTokenizer {
 
   // Mirrors BERT _is_control: Cc / Cf Unicode categories, excluding \t \n \r.
   bool _isControl(int cp) {
-    if (cp == 0x09 || cp == 0x0A || cp == 0x0D)
+    if (cp == 0x09 || cp == 0x0A || cp == 0x0D) {
       return false; // kept as whitespace
+    }
     if (cp <= 0x1F) return true; // C0 controls
     if (cp >= 0x7F && cp <= 0x9F) return true; // DEL + C1 controls
     // Cf (Format) — zero-width, directional, BOM, soft hyphen
@@ -291,10 +262,7 @@ class DartTokenizer {
       _amountToken,
     );
     out = _replaceIfSupported(out, RegExp(r'\b\d{4,8}\b'), _otpToken);
-    // Lowercase to match training data: build_dataset.py's normalize() lowercased
-    // every row before fine-tuning. The model's fine-tuned embeddings are almost
-    // entirely lowercase; mixed-case inference degrades accuracy measurably.
-    return out.toLowerCase();
+    return out;
   }
 
   String _replaceIfSupported(String text, RegExp regex, String? token) {
@@ -329,6 +297,32 @@ class DartTokenizer {
     }
     if (buf.isNotEmpty) result.add(buf.toString());
     return result;
+  }
+
+  Map<String, List<int>> _tokenizeImpl(String text, {required int maxLength}) {
+    final preprocessed = _preprocess(text);
+    final words = _basicTokenize(preprocessed);
+    final ids = <int>[_clsToken];
+
+    for (final word in words) {
+      if (ids.length >= maxLength - 1) break;
+      final pieces = _wordpieceIds(word);
+      for (final id in pieces) {
+        if (ids.length >= maxLength - 1) break;
+        ids.add(id);
+      }
+    }
+    ids.add(_sepToken);
+
+    final inputIds = List<int>.filled(maxLength, _padToken);
+    final attentionMask = List<int>.filled(maxLength, 0);
+
+    for (int i = 0; i < ids.length && i < maxLength; i++) {
+      inputIds[i] = ids[i];
+      attentionMask[i] = 1;
+    }
+
+    return {'input_ids': inputIds, 'attention_mask': attentionMask};
   }
 
   // ---------------------------------------------------------------------------

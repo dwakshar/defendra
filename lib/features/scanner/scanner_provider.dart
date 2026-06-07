@@ -25,9 +25,8 @@ class ScannerNotifier extends StateNotifier<ScannerState> {
   final Ref _ref;
 
   // preset constructor kept for tests that inject pre-built state.
-  ScannerNotifier.preset(ScannerState s, Ref ref)
-      : _ref = ref,
-        super(s);
+  ScannerNotifier.preset(super.s, Ref ref)
+      : _ref = ref;
 
   Future<void> scan(String text) async {
     state = const ScannerState(isLoading: true);

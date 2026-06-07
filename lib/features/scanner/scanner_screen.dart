@@ -59,9 +59,6 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
   void _loadSample(String text) {
     _controller.text = text;
     _controller.selection = TextSelection.collapsed(offset: text.length);
-    // Auto-scan immediately so the user sees a result without pressing SCAN.
-    _lastScannedText = text;
-    ref.read(scannerProvider.notifier).scan(text);
   }
 
   @override
@@ -98,6 +95,26 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
+              if (ref.watch(mlLoadingProvider))
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 10, vertical: 7),
+                  decoration: BoxDecoration(
+                    color: context.dCard,
+                    border: Border.all(color: context.dBorder),
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'ML engine loading…',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 10,
+                      color: context.dMuted,
+                      letterSpacing: 0.3,
+                    ),
+                  ),
+                ),
               if (mlOffline)
                 Container(
                   width: double.infinity,
@@ -110,10 +127,15 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                     borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    'ML engine loading — verdicts are rule-based only',
+                    () {
+                      final err = ref.watch(mlErrorProvider);
+                      return err != null
+                          ? 'ML engine failed — rule-only\n$err'
+                          : 'ML engine failed — verdicts are rule-based only';
+                    }(),
                     style: GoogleFonts.jetBrainsMono(
                       fontSize: 10,
-                      color: context.dMuted,
+                      color: DefendraColors.scam,
                       letterSpacing: 0.3,
                     ),
                   ),
@@ -209,7 +231,7 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                         ),
                 ),
               ),
-              // Animated result / example chips / error
+              // Animated result / error
               AnimatedSwitcher(
                 duration: const Duration(milliseconds: 150),
                 transitionBuilder: (child, anim) => FadeTransition(
@@ -262,15 +284,13 @@ class _ScannerScreenState extends ConsumerState<ScannerScreen> {
                               },
                             ),
                           )
-                        : _inputEmpty && !state.isLoading
-                            ? Padding(
-                                key: const ValueKey('chips'),
-                                padding: const EdgeInsets.only(top: 20),
-                                child: _ExampleChips(onSelect: _loadSample),
-                              )
-                            : const SizedBox.shrink(
-                                key: ValueKey('empty')),
+                        : const SizedBox.shrink(key: ValueKey('empty')),
               ),
+              // Example chips — always visible below result/error
+              if (!state.isLoading) ...[
+                const SizedBox(height: 20),
+                _ExampleChips(onSelect: _loadSample),
+              ],
               // Recent scans
               if (recentRecords.isNotEmpty) ...[
                 const SizedBox(height: 28),
